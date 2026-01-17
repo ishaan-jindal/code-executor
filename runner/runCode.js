@@ -1,110 +1,53 @@
 import fs from "fs";
 import path from "path";
-import { spawn } from "child_process";
 import { JobStatus } from "../jobs/jobTypes.js";
 
-const FILES = {
-  python: "main.py",
-  c: "main.c"
-};
+import { compileC } from "./compileC.js";
+import { runBinary } from "./runBinary.js";
+import { runPython } from "./runPython.js";
 
-const IMAGES = {
-  python: "runner-py",
-  c: "runner-c"
-};
+export default async function runCode(job) {
+  const dir = fs.mkdtempSync("/tmp/run-");
 
-export default function runCode(job) {
-  const { language, code, stdin } = job;
+  try {
+    if (job.language === "c") {
+      fs.writeFileSync(path.join(dir, "main.c"), job.code);
 
-  return new Promise((resolve) => {
-    const dir = fs.mkdtempSync("/tmp/run-");
-    const filePath = path.join(dir, FILES[language]);
-
-    fs.writeFileSync(filePath, code);
-
-    const child = spawn(
-      "docker",
-      [
-        "run",
-        "--rm",
-        "-i",
-
-        "--memory=64m",
-        "--cpus=0.5",
-        "--pids-limit=64",
-        
-        "--network=none",
-
-        "--cap-drop=ALL",
-        "--security-opt=no-new-privileges",
-        "--read-only",
-
-        "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
-
-        "--user=runner",
-        
-        "-v",
-        `${dir}:/app`,
-
-        IMAGES[language]
-      ],
-      { stdio: ["pipe", "pipe", "pipe"] }
-    );
-
-    let stdout = "";
-    let stderr = "";
-    let finished = false;
-
-    child.stdout.on("data", (d) => (stdout += d.toString()));
-    child.stderr.on("data", (d) => (stderr += d.toString()));
-
-    child.stdin.write(stdin ?? "");
-    child.stdin.end();
-
-    const timeout = setTimeout(() => {
-      if (finished) return;
-      finished = true;
-
-      child.kill("SIGKILL");
-      cleanup();
-
-      resolve({
-        status: JobStatus.TIME_LIMIT_EXCEEDED,
-        stdout,
-        stderr: stderr || "Time limit exceeded",
-        exit_code: null
-      });
-    }, 2000);
-
-    child.on("close", (code) => {
-      if (finished) return;
-      finished = true;
-
-      clearTimeout(timeout);
-      cleanup();
-
-      if (code === 0) {
-        resolve({
-          status: JobStatus.ACCEPTED,
-          stdout,
-          stderr,
-          exit_code: 0
-        });
-      } else {
-        resolve({
-          status: JobStatus.RUNTIME_ERROR,
-          stdout,
-          stderr,
-          exit_code: code
-        });
-      }
-    });
-
-    function cleanup() {
       try {
-        fs.rmSync(dir, { recursive: true, force: true });
-      } catch {}
+        compileC(dir);
+      } catch (err) {
+        return {
+          status: JobStatus.COMPILE_ERROR,
+          stdout: "",
+          stderr: err.stderr || "Compilation failed",
+          exit_code: null
+        };
+      }
+
+      return await runBinary(dir, job.stdin);
     }
-  });
+
+    if (job.language === "python") {
+      fs.writeFileSync(path.join(dir, "main.py"), job.code);
+      return await runPython(dir, job.stdin);
+    }
+
+    return {
+      status: JobStatus.SYSTEM_ERROR,
+      stdout: "",
+      stderr: "Unsupported language",
+      exit_code: null
+    };
+
+  } catch (err) {
+    return {
+      status: JobStatus.SYSTEM_ERROR,
+      stdout: "",
+      stderr: err?.message || "Internal error",
+      exit_code: null
+    };
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 }
 

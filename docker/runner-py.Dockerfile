@@ -5,5 +5,5 @@ WORKDIR /app
 RUN adduser -D runner
 USER runner
 
-CMD ["python", "main.py"]
+ENTRYPOINT ["python3"]
 
