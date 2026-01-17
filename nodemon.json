@@ -1,0 +1,15 @@
+{
+  "watch": [
+    "server.js",
+    "runner",
+    "similarity",
+    "limits",
+    "logs",
+    "challenges"
+  ],
+  "ext": "js,json",
+  "ignore": [
+    "/tmp"
+  ],
+  "delay": "200"
+}
