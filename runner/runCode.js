@@ -28,12 +28,24 @@ export default function runCode(job) {
         "run",
         "--rm",
         "-i",
+
         "--memory=64m",
         "--cpus=0.5",
-        "--network=none",
         "--pids-limit=64",
+        
+        "--network=none",
+
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--read-only",
+
+        "--tmpfs", "/tmp:rw,noexec,nosuid,size=16m",
+
+        "--user=runner",
+        
         "-v",
         `${dir}:/app`,
+
         IMAGES[language]
       ],
       { stdio: ["pipe", "pipe", "pipe"] }
