@@ -1,27 +1,17 @@
 import crypto from "crypto";
+import { info } from "./logger.js";
 
 export function requestLogger(req, res, next) {
-  const requestId = crypto.randomUUID();
-  const startTime = Date.now();
+  const reqId = crypto.randomUUID();
+  req.requestId = reqId;
 
-  req.requestId = requestId;
+  const start = Date.now();
 
-  console.log(
-    `\n[REQ ${requestId}] ${new Date().toISOString()}`
-  );
-  console.log(
-    `[REQ ${requestId}] ${req.method} ${req.originalUrl}`
-  );
+  info(`${req.method} ${req.url}`, { reqId });
 
   res.on("finish", () => {
-    const duration = Date.now() - startTime;
-
-    console.log(
-      `[RES ${requestId}] Status: ${res.statusCode} | ${duration} ms`
-    );
-    console.log(
-      `[END ${requestId}]`
-    );
+    const ms = Date.now() - start;
+    info(`completed ${res.statusCode} in ${ms}ms`, { reqId });
   });
 
   next();

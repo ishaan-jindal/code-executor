@@ -2,10 +2,10 @@
   "watch": [
     "server.js",
     "runner",
-    "similarity",
     "limits",
     "logs",
-    "challenges"
+    "workers",
+    "jobs"
   ],
   "ext": "js,json",
   "ignore": [

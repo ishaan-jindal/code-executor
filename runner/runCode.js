@@ -1,6 +1,7 @@
 import fs from "fs";
 import path from "path";
 import { spawn } from "child_process";
+import { JobStatus } from "../jobs/jobTypes.js";
 
 const FILES = {
   python: "main.py",
@@ -12,7 +13,9 @@ const IMAGES = {
   c: "runner-c"
 };
 
-export function runCode({ language, code, input }) {
+export default function runCode(job) {
+  const { language, code, stdin } = job;
+
   return new Promise((resolve) => {
     const dir = fs.mkdtempSync("/tmp/run-");
     const filePath = path.join(dir, FILES[language]);
@@ -33,37 +36,32 @@ export function runCode({ language, code, input }) {
         `${dir}:/app`,
         IMAGES[language]
       ],
-      {
-        stdio: ["pipe", "pipe", "pipe"]
-      }
+      { stdio: ["pipe", "pipe", "pipe"] }
     );
 
     let stdout = "";
     let stderr = "";
     let finished = false;
 
-    child.stdout.on("data", (data) => {
-      stdout += data.toString();
-    });
+    child.stdout.on("data", (d) => (stdout += d.toString()));
+    child.stderr.on("data", (d) => (stderr += d.toString()));
 
-    child.stderr.on("data", (data) => {
-      stderr += data.toString();
-    });
-
-    child.stdin.write(input);
+    child.stdin.write(stdin ?? "");
     child.stdin.end();
 
     const timeout = setTimeout(() => {
-      if (!finished) {
-        finished = true;
-        child.kill("SIGKILL");
+      if (finished) return;
+      finished = true;
 
-        cleanup();
-        resolve({
-          success: false,
-          error: "Time limit exceeded"
-        });
-      }
+      child.kill("SIGKILL");
+      cleanup();
+
+      resolve({
+        status: JobStatus.TIME_LIMIT_EXCEEDED,
+        stdout,
+        stderr: stderr || "Time limit exceeded",
+        exit_code: null
+      });
     }, 2000);
 
     child.on("close", (code) => {
@@ -75,13 +73,17 @@ export function runCode({ language, code, input }) {
 
       if (code === 0) {
         resolve({
-          success: true,
-          output: stdout
+          status: JobStatus.ACCEPTED,
+          stdout,
+          stderr,
+          exit_code: 0
         });
       } else {
         resolve({
-          success: false,
-          error: stderr || "Runtime error"
+          status: JobStatus.RUNTIME_ERROR,
+          stdout,
+          stderr,
+          exit_code: code
         });
       }
     });
@@ -89,9 +91,7 @@ export function runCode({ language, code, input }) {
     function cleanup() {
       try {
         fs.rmSync(dir, { recursive: true, force: true });
-      } catch (_) {
-        // ignore cleanup errors
-      }
+      } catch {}
     }
   });
 }
