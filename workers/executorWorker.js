@@ -1,36 +1,37 @@
-import { jobs } from "../jobs/jobStore.js";
-import { queue } from "../jobs/jobQueue.js";
+import { dequeueJob } from "../jobs/jobQueue.js";
+import { getJob, updateJob } from "../jobs/jobStore.js";
 import { JobStatus } from "../jobs/jobTypes.js";
-import { executionLimiter } from "../limits/executionLimiter.js";
 import runCode from "../runner/runCode.js";
 
-setInterval(() => {
-  if (queue.length === 0) return;
+export async function startWorker(id) {
+  console.log(`[WORKER ${id}] started`);
 
-  // pull job
-  const jobId = queue.shift();
-  if (!jobId) return;
-
-  const job = jobs.get(jobId);
-  if (!job) return;
-
-  // submit execution task to limiter
-  executionLimiter.run(async () => {
-    job.status = JobStatus.RUNNING;
-
+  while (true) {
     try {
+      const jobId = await dequeueJob();
+      if (!jobId) continue;
+
+      const job = await getJob(jobId);
+      if (!job) continue;
+
+      await updateJob(jobId, {
+        status: JobStatus.RUNNING,
+        started_at: Date.now()
+      });
+
       const result = await runCode(job);
 
-      job.status = result.status;
-      job.result = result;
+      await updateJob(jobId, {
+        status: result.status,
+        stdout: result.stdout,
+        stderr: result.stderr,
+        exit_code: result.exit_code,
+        finished_at: Date.now()
+      });
+
     } catch (err) {
-      job.status = JobStatus.SYSTEM_ERROR;
-      job.result = {
-        job_id: job.id,
-        status: JobStatus.SYSTEM_ERROR,
-        error: err?.message ?? "Execution failed"
-      };
+      console.error(`[WORKER ${id}] crashed but recovered`, err);
     }
-  });
-}, 5);
+  }
+}
 

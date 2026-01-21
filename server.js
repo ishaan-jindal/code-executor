@@ -6,11 +6,11 @@ import { requestLogger } from "./logs/requestLogger.js";
 import { info, error as logError } from "./logs/logger.js";
 import { ApiError } from "./utils/apiError.js";
 
-import { jobs } from "./jobs/jobStore.js";
-import { queue } from "./jobs/jobQueue.js";
+import { createJob, getJob } from "./jobs/jobStore.js";
+import { enqueueJob } from "./jobs/jobQueue.js";
 import { JobStatus } from "./jobs/jobTypes.js";
 
-import "./workers/executorWorker.js";
+import { startWorker } from "./workers/executorWorker.js";
 
 const app = express();
 
@@ -20,7 +20,7 @@ app.use(bodyParser.json({ limit: "100kb" }));
 // --------------------
 // SUBMIT
 // --------------------
-app.post("/submit", (req, res, next) => {
+app.post("/submit", async (req, res, next) => {
   try {
     const { language, code, stdin } = req.body;
     const reqId = req.requestId;
@@ -38,15 +38,16 @@ app.post("/submit", (req, res, next) => {
 
     const jobId = crypto.randomUUID();
 
-    jobs.set(jobId, {
+    await createJob({
       id: jobId,
       language,
       code,
-      stdin,
-      status: JobStatus.QUEUED
+      stdin: stdin ?? "",
+      status: JobStatus.QUEUED,
+      created_at: Date.now()
     });
 
-    queue.push(jobId);
+    await enqueueJob(jobId);
 
     info(`job queued`, { reqId, jobId });
 
@@ -65,10 +66,10 @@ app.post("/submit", (req, res, next) => {
 // --------------------
 // RESULT (polling)
 // --------------------
-app.get("/result/:id", (req, res, next) => {
+app.get("/result/:id", async (req, res, next) => {
   try {
     const jobId = req.params.id;
-    const job = jobs.get(jobId);
+    const job = await getJob(jobId); 
 
     if (!job) {
       return res.status(404).json({ error: "JOB_NOT_FOUND" });
@@ -83,9 +84,17 @@ app.get("/result/:id", (req, res, next) => {
         status: job.status
       });
     }
-
-    return res.json(job.result);
-
+    
+    return res.json({
+      job_id: job.id,
+      status: job.status,
+      stdout: job.stdout ?? "",
+      stderr: job.stderr ?? "",
+      exit_code:
+        job.exit_code !== undefined
+          ? Number(job.exit_code)
+          : null
+    });
   } catch (err) {
     next(err);
   }
@@ -114,5 +123,8 @@ app.use((err, req, res, next) => {
 
 app.listen(4000, "0.0.0.0", () => {
   info("server started on port 4000");
+
+  startWorker(1);
+  startWorker(2);
 });
 
