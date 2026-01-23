@@ -44,7 +44,7 @@ app.post("/submit", async (req, res, next) => {
       code,
       stdin: stdin ?? "",
       status: JobStatus.QUEUED,
-      created_at: Date.now()
+      created_at: Date.now(),
     });
 
     await enqueueJob(jobId);
@@ -53,11 +53,10 @@ app.post("/submit", async (req, res, next) => {
 
     res.json({
       job_id: jobId,
-      status: JobStatus.QUEUED
+      status: JobStatus.QUEUED,
     });
 
     info(`submit response sent`, { reqId, jobId });
-
   } catch (err) {
     next(err);
   }
@@ -69,31 +68,25 @@ app.post("/submit", async (req, res, next) => {
 app.get("/result/:id", async (req, res, next) => {
   try {
     const jobId = req.params.id;
-    const job = await getJob(jobId); 
+    const job = await getJob(jobId);
 
     if (!job) {
       return res.status(404).json({ error: "JOB_NOT_FOUND" });
     }
 
-    if (
-      job.status === JobStatus.QUEUED ||
-      job.status === JobStatus.RUNNING
-    ) {
+    if (job.status === JobStatus.QUEUED || job.status === JobStatus.RUNNING) {
       return res.json({
         job_id: job.id,
-        status: job.status
+        status: job.status,
       });
     }
-    
+
     return res.json({
       job_id: job.id,
       status: job.status,
       stdout: job.stdout ?? "",
       stderr: job.stderr ?? "",
-      exit_code:
-        job.exit_code !== undefined
-          ? Number(job.exit_code)
-          : null
+      exit_code: job.exit_code !== undefined ? Number(job.exit_code) : null,
     });
   } catch (err) {
     next(err);
@@ -107,17 +100,17 @@ app.use((err, req, res, next) => {
   const status = err.statusCode || 500;
 
   logError(err.message, {
-    reqId: req.requestId
+    reqId: req.requestId,
   });
 
   if (err.details) {
     logError(JSON.stringify(err.details), {
-      reqId: req.requestId
+      reqId: req.requestId,
     });
   }
 
   res.status(status).json({
-    error: err.message
+    error: err.message,
   });
 });
 
@@ -127,4 +120,3 @@ app.listen(4000, "0.0.0.0", () => {
   startWorker(1);
   startWorker(2);
 });
-

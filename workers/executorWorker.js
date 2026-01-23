@@ -16,7 +16,7 @@ export async function startWorker(id) {
 
       await updateJob(jobId, {
         status: JobStatus.RUNNING,
-        started_at: Date.now()
+        started_at: Date.now(),
       });
 
       const result = await runCode(job);
@@ -26,12 +26,10 @@ export async function startWorker(id) {
         stdout: result.stdout,
         stderr: result.stderr,
         exit_code: result.exit_code,
-        finished_at: Date.now()
+        finished_at: Date.now(),
       });
-
     } catch (err) {
       console.error(`[WORKER ${id}] crashed but recovered`, err);
     }
   }
 }
-

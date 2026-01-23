@@ -7,7 +7,7 @@ class ExecutionLimiter {
 
   async run(task) {
     if (this.running >= this.max) {
-      await new Promise(resolve => this.queue.push(resolve));
+      await new Promise((resolve) => this.queue.push(resolve));
     }
 
     this.running++;
@@ -24,4 +24,3 @@ class ExecutionLimiter {
 }
 
 export const executionLimiter = new ExecutionLimiter(10);
-

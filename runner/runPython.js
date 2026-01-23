@@ -6,36 +6,47 @@ const SECCOMP = path.resolve("./seccomp-runtime.json");
 
 export function runPython(dir, stdin) {
   return new Promise((resolve) => {
-    const child = spawn("docker", [
-      "run", "--rm", "-i",
+    const child = spawn(
+      "docker",
+      [
+        "run",
+        "--rm",
+        "-i",
 
-      "--runtime=runsc",
+        "--runtime=runsc",
 
-      "--memory=64m",
-      "--cpus=0.5",
-      "--pids-limit=32",
+        "--memory=64m",
+        "--cpus=0.5",
+        "--pids-limit=32",
 
-      "--network=none",
+        "--network=none",
 
-      "--cap-drop=ALL",
-      "--security-opt=no-new-privileges",
-      "--security-opt", `seccomp=${SECCOMP}`,
-      "--read-only",
+        "--cap-drop=ALL",
+        "--security-opt=no-new-privileges",
+        "--security-opt",
+        `seccomp=${SECCOMP}`,
+        "--read-only",
 
-      "--tmpfs", "/tmp:rw,nosuid,noexec,size=16m",
+        "--tmpfs",
+        "/tmp:rw,nosuid,noexec,size=16m",
 
-      "--user=runner",
+        "--user=runner",
 
-      "-v", `${dir}:/app`,
+        "-v",
+        `${dir}:/app`,
 
-      "runner-runtime",
-      "python3", "main.py"
-    ], { stdio: ["pipe", "pipe", "pipe"] });
+        "runner-runtime",
+        "python3",
+        "main.py",
+      ],
+      { stdio: ["pipe", "pipe", "pipe"] },
+    );
 
-    let stdout = "", stderr = "";
+    let stdout = "",
+      stderr = "";
 
-    child.stdout.on("data", d => stdout += d);
-    child.stderr.on("data", d => stderr += d);
+    child.stdout.on("data", (d) => (stdout += d));
+    child.stderr.on("data", (d) => (stderr += d));
 
     child.stdin.write(stdin ?? "");
     child.stdin.end();
@@ -45,18 +56,17 @@ export function runPython(dir, stdin) {
       resolve({
         status: JobStatus.TIME_LIMIT_EXCEEDED,
         stdout,
-        stderr
+        stderr,
       });
     }, 2000);
 
-    child.on("close", code => {
+    child.on("close", (code) => {
       resolve({
         status: code === 0 ? JobStatus.ACCEPTED : JobStatus.RUNTIME_ERROR,
         stdout,
         stderr,
-        exit_code: code
+        exit_code: code,
       });
     });
   });
 }
-

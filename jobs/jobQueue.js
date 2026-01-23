@@ -10,4 +10,3 @@ export async function dequeueJob() {
   const result = await redisBlocking.blpop(QUEUE_KEY, 0);
   return result[1];
 }
-

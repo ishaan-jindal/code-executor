@@ -12,4 +12,3 @@ export async function getJob(id) {
 export async function updateJob(id, updates) {
   await redis.hset(`job:${id}`, updates);
 }
-

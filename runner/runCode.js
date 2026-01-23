@@ -20,7 +20,7 @@ export default async function runCode(job) {
           status: JobStatus.COMPILE_ERROR,
           stdout: "",
           stderr: err.stderr || "Compilation failed",
-          exit_code: null
+          exit_code: null,
         };
       }
 
@@ -36,18 +36,16 @@ export default async function runCode(job) {
       status: JobStatus.SYSTEM_ERROR,
       stdout: "",
       stderr: "Unsupported language",
-      exit_code: null
+      exit_code: null,
     };
-
   } catch (err) {
     return {
       status: JobStatus.SYSTEM_ERROR,
       stdout: "",
       stderr: err?.message || "Internal error",
-      exit_code: null
+      exit_code: null,
     };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
-
