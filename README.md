@@ -75,6 +75,8 @@ tests/                   # Test suites
 
 ## Documentation
 
+- **[docs/API.md](docs/API.md)** - Complete API documentation with examples
+- **[docs/STDIN.md](docs/STDIN.md)** - stdin handling guide with 10+ examples
 - **[docs/MONITORING.md](docs/MONITORING.md)** - Metrics, dashboards, alerting
 - **[docs/DOCKER.md](docs/DOCKER.md)** - Docker images and security
 - **[docs/TESTING.md](docs/TESTING.md)** - Testing procedures

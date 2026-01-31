@@ -235,6 +235,117 @@ async function runTests() {
     console.log(`  Status: ${errorResult.status}`);
     console.log(`  Error: ${errorResult.stderr.split("\n")[0]}\n`);
 
+    // Test 11: Python with stdin
+    console.log("✓ Test 11: Python with stdin");
+    const stdinRes = await makeRequest("POST", "/submit", {
+      language: "python",
+      code: 'name = input("Enter name: ")\nprint(f"Hello, {name}!")',
+      stdin: "Alice",
+    });
+    if (stdinRes.status !== 201) {
+      throw new Error(`Expected 201, got ${stdinRes.status}`);
+    }
+    const stdinJobId = stdinRes.body.job_id;
+
+    let stdinResult = null;
+    for (let i = 0; i < 75; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      const res = await makeRequest("GET", `/result/${stdinJobId}`);
+      if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
+        stdinResult = res.body;
+        break;
+      }
+    }
+
+    if (!stdinResult) {
+      throw new Error("stdin job did not complete in time");
+    }
+    if (stdinResult.status !== JobStatus.ACCEPTED) {
+      throw new Error(`stdin job failed: ${stdinResult.status}\nStderr: ${stdinResult.stderr}`);
+    }
+    if (!stdinResult.stdout.includes("Alice")) {
+      throw new Error(`Expected stdin in output: ${stdinResult.stdout}`);
+    }
+    console.log(`  Status: ${stdinResult.status}`);
+    console.log(`  Output: ${stdinResult.stdout.trim()}\n`);
+
+    // Test 12: C with stdin
+    console.log("✓ Test 12: C with stdin");
+    const cStdinRes = await makeRequest("POST", "/submit", {
+      language: "c",
+      code: `
+        #include <stdio.h>
+        int main() {
+          int x;
+          scanf("%d", &x);
+          printf("You entered: %d\\n", x);
+          printf("Squared: %d\\n", x * x);
+          return 0;
+        }
+      `,
+      stdin: "7",
+    });
+    if (cStdinRes.status !== 201) {
+      throw new Error(`Expected 201, got ${cStdinRes.status}`);
+    }
+    const cStdinJobId = cStdinRes.body.job_id;
+
+    let cStdinResult = null;
+    for (let i = 0; i < 75; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      const res = await makeRequest("GET", `/result/${cStdinJobId}`);
+      if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
+        cStdinResult = res.body;
+        break;
+      }
+    }
+
+    if (!cStdinResult) {
+      throw new Error("C stdin job did not complete in time");
+    }
+    if (cStdinResult.status !== JobStatus.ACCEPTED) {
+      throw new Error(`C stdin job failed: ${cStdinResult.status}\nStderr: ${cStdinResult.stderr}`);
+    }
+    if (!cStdinResult.stdout.includes("7") || !cStdinResult.stdout.includes("49")) {
+      throw new Error(`Expected stdin and calculation in output: ${cStdinResult.stdout}`);
+    }
+    console.log(`  Status: ${cStdinResult.status}`);
+    console.log(`  Output: ${cStdinResult.stdout.trim()}\n`);
+
+    // Test 13: Multi-line stdin
+    console.log("✓ Test 13: Multi-line stdin");
+    const multiRes = await makeRequest("POST", "/submit", {
+      language: "python",
+      code: "lines = []\nfor _ in range(3):\n  lines.append(input())\nfor i, line in enumerate(lines, 1):\n  print(f'{i}: {line}')",
+      stdin: "first\nsecond\nthird",
+    });
+    if (multiRes.status !== 201) {
+      throw new Error(`Expected 201, got ${multiRes.status}`);
+    }
+    const multiJobId = multiRes.body.job_id;
+
+    let multiResult = null;
+    for (let i = 0; i < 75; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      const res = await makeRequest("GET", `/result/${multiJobId}`);
+      if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
+        multiResult = res.body;
+        break;
+      }
+    }
+
+    if (!multiResult) {
+      throw new Error("multi-line stdin job did not complete in time");
+    }
+    if (multiResult.status !== JobStatus.ACCEPTED) {
+      throw new Error(`multi-line stdin job failed: ${multiResult.status}\nStderr: ${multiResult.stderr}`);
+    }
+    if (!multiResult.stdout.includes("1: first") || !multiResult.stdout.includes("3: third")) {
+      throw new Error(`Expected multi-line stdin in output: ${multiResult.stdout}`);
+    }
+    console.log(`  Status: ${multiResult.status}`);
+    console.log(`  Output: ${multiResult.stdout.trim()}\n`);
+
     console.log("✅ All tests passed!\n");
   } catch (err) {
     console.error(`❌ Test failed: ${err.message}\n`);
