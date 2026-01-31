@@ -1,11 +1,11 @@
 import { spawn, spawnSync } from "child_process";
 import path from "path";
 import { JobStatus } from "../jobs/jobTypes.js";
-import { truncateOutput, MAX_OUTPUT_SIZE } from "../utils/outputHandler.js";
+import { truncateOutput, MAX_OUTPUT_SIZE } from "../../utils/outputHandler.js";
 
 const SECCOMP = path.resolve("./config/seccomp-runtime.json");
 
-export function runBinary(dir, stdin) {
+export function runPython(dir, stdin) {
   const containerId = `runner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
   // Build docker args with optional gVisor runtime
@@ -38,7 +38,8 @@ export function runBinary(dir, stdin) {
     "-v",
     `${dir}:/app`,
     "runner-runtime",
-    "./a.out"
+    "python3",
+    "main.py"
   );
 
   return new Promise((resolve, reject) => {

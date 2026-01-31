@@ -1,5 +1,5 @@
 import http from "http";
-import { JobStatus } from "../../jobs/jobTypes.js";
+import { JobStatus } from "../../src/core/jobs/jobTypes.js";
 
 const BASE_URL = "http://localhost:4000";
 

@@ -49,6 +49,30 @@ docker-compose -f deployment/docker-compose.monitoring.yml up -d
 
 See [docs/MONITORING.md](docs/MONITORING.md) for complete guide.
 
+## Project Structure
+
+```
+src/
+├── api/                    # API layer
+│   └── routes/            # Express route handlers
+├── core/                  # Business logic
+│   ├── jobs/             # Job management
+│   ├── limits/           # Execution limiting
+│   ├── runner/           # Code execution
+│   └── workers/          # Worker processes
+├── infrastructure/        # Infrastructure concerns
+│   ├── logs/            # Logging
+│   ├── metrics/         # Metrics collection
+│   └── redis/           # Redis client
+├── middleware/           # Express middleware
+└── utils/               # Utility functions
+
+config/                   # Configuration files
+deployment/              # Docker & orchestration
+docs/                    # Documentation
+tests/                   # Test suites
+```
+
 ## Documentation
 
 - **[docs/MONITORING.md](docs/MONITORING.md)** - Metrics, dashboards, alerting

@@ -1,4 +1,4 @@
-import { redis } from "../redis/redisClient.js";
+import { redis } from "../../infrastructure/redis/redisClient.js";
 
 // Store job JSON to preserve types and schema
 export async function createJob(job) {

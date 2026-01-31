@@ -3,7 +3,7 @@ import { getJob, updateJob } from "../jobs/jobStore.js";
 import { JobStatus } from "../jobs/jobTypes.js";
 import runCode from "../runner/runCode.js";
 import { executionLimiter } from "../limits/executionLimiter.js";
-import { metrics } from "../metrics/metricsCollector.js";
+import { metrics } from "../../infrastructure/metrics/metricsCollector.js";
 
 export async function startWorker(id) {
   console.log(`[WORKER ${id}] started`);

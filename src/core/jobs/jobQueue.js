@@ -1,4 +1,4 @@
-import { redis, redisBlocking } from "../redis/redisClient.js";
+import { redis, redisBlocking } from "../../infrastructure/redis/redisClient.js";
 
 const QUEUE_KEY = "jobs:queue";
 
