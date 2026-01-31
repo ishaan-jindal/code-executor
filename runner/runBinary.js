@@ -7,44 +7,44 @@ const SECCOMP = path.resolve("./seccomp-runtime.json");
 
 export function runBinary(dir, stdin) {
   const containerId = `runner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  // Build docker args with optional gVisor runtime
+  const dockerArgs = [
+    "run",
+    "--rm",
+    "-i",
+    "--name",
+    containerId,
+  ];
+  
+  // Only add gVisor runtime if available (can be disabled via env var)
+  if (process.env.DISABLE_GVISOR !== "true") {
+    dockerArgs.push("--runtime=runsc");
+  }
+  
+  dockerArgs.push(
+    "--memory=64m",
+    "--cpus=0.5",
+    "--pids-limit=32",
+    "--network=none",
+    "--cap-drop=ALL",
+    "--security-opt=no-new-privileges",
+    "--security-opt",
+    `seccomp=${SECCOMP}`,
+    "--read-only",
+    "--tmpfs",
+    "/tmp:rw,nosuid,noexec,size=16m",
+    "--user=runner",
+    "-v",
+    `${dir}:/app`,
+    "runner-runtime",
+    "./a.out"
+  );
 
   return new Promise((resolve, reject) => {
-    const child = spawn(
-      "docker",
-      [
-        "run",
-        "--rm",
-        "-i",
-        "--name",
-        containerId,
-
-        "--runtime=runsc",
-
-        "--memory=64m",
-        "--cpus=0.5",
-        "--pids-limit=32",
-
-        "--network=none",
-
-        "--cap-drop=ALL",
-        "--security-opt=no-new-privileges",
-        "--security-opt",
-        `seccomp=${SECCOMP}`,
-        "--read-only",
-
-        "--tmpfs",
-        "/tmp:rw,nosuid,noexec,size=16m",
-
-        "--user=runner",
-
-        "-v",
-        `${dir}:/app`,
-
-        "runner-runtime",
-        "./a.out",
-      ],
-      { stdio: ["pipe", "pipe", "pipe"] },
-    );
+    const child = spawn("docker", dockerArgs, {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
 
     let stdout = "",
       stderr = "";

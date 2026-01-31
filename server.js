@@ -6,6 +6,7 @@ import { requestLogger } from "./logs/requestLogger.js";
 import { info, error as logError } from "./logs/logger.js";
 import { ApiError } from "./utils/apiError.js";
 import { ApiResponse } from "./utils/apiResponse.js";
+import { redis } from "./redis/redisClient.js";
 
 import { createJob, getJob } from "./jobs/jobStore.js";
 import { enqueueJob } from "./jobs/jobQueue.js";
@@ -17,6 +18,28 @@ const app = express();
 
 app.use(requestLogger);
 app.use(bodyParser.json({ limit: "100kb" }));
+
+// --------------------
+// HEALTH CHECK
+// --------------------
+app.get("/health", async (req, res) => {
+  try {
+    // Quick Redis connectivity check
+    await redis.ping();
+    
+    return res.json({
+      status: "healthy",
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+    });
+  } catch (err) {
+    return res.status(503).json({
+      status: "unhealthy",
+      error: err.message,
+      timestamp: new Date().toISOString(),
+    });
+  }
+});
 
 // --------------------
 // SUBMIT

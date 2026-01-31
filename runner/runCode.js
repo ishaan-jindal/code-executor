@@ -15,7 +15,7 @@ export default async function runCode(job) {
       fs.writeFileSync(path.join(dir, "main.c"), job.code);
 
       try {
-        compileC(dir);
+        await compileC(dir);
       } catch (err) {
         return {
           status: JobStatus.COMPILE_ERROR,
