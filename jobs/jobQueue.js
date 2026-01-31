@@ -8,5 +8,8 @@ export async function enqueueJob(jobId) {
 
 export async function dequeueJob() {
   const result = await redisBlocking.blpop(QUEUE_KEY, 0);
+  if (!result || !result[1]) {
+    return null;
+  }
   return result[1];
 }

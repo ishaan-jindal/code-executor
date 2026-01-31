@@ -1,5 +1,5 @@
 function time() {
-  return new Date().toISOString().split("T")[1].replace("Z", "");
+  return new Date().toISOString();
 }
 
 export function log(level, message, meta = {}) {

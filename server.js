@@ -5,6 +5,7 @@ import crypto from "crypto";
 import { requestLogger } from "./logs/requestLogger.js";
 import { info, error as logError } from "./logs/logger.js";
 import { ApiError } from "./utils/apiError.js";
+import { ApiResponse } from "./utils/apiResponse.js";
 
 import { createJob, getJob } from "./jobs/jobStore.js";
 import { enqueueJob } from "./jobs/jobQueue.js";
@@ -51,12 +52,9 @@ app.post("/submit", async (req, res, next) => {
 
     info(`job queued`, { reqId, jobId });
 
-    res.json({
-      job_id: jobId,
-      status: JobStatus.QUEUED,
-    });
-
-    info(`submit response sent`, { reqId, jobId });
+    return res.status(201).json(
+      ApiResponse.jobResponse({ id: jobId, status: JobStatus.QUEUED })
+    );
   } catch (err) {
     next(err);
   }
@@ -71,23 +69,15 @@ app.get("/result/:id", async (req, res, next) => {
     const job = await getJob(jobId);
 
     if (!job) {
-      return res.status(404).json({ error: "JOB_NOT_FOUND" });
+      return res.status(404).json(
+        ApiResponse.error("Job not found", "JOB_NOT_FOUND")
+      );
     }
 
-    if (job.status === JobStatus.QUEUED || job.status === JobStatus.RUNNING) {
-      return res.json({
-        job_id: job.id,
-        status: job.status,
-      });
-    }
+    const includeOutput =
+      job.status !== JobStatus.QUEUED && job.status !== JobStatus.RUNNING;
 
-    return res.json({
-      job_id: job.id,
-      status: job.status,
-      stdout: job.stdout ?? "",
-      stderr: job.stderr ?? "",
-      exit_code: job.exit_code !== undefined ? Number(job.exit_code) : null,
-    });
+    return res.json(ApiResponse.jobResponse(job, includeOutput));
   } catch (err) {
     next(err);
   }
@@ -109,14 +99,27 @@ app.use((err, req, res, next) => {
     });
   }
 
-  res.status(status).json({
-    error: err.message,
+  return res.status(status).json(
+    ApiResponse.error(err.message, err.code || "INTERNAL_ERROR")
+  );
+});
+
+const PORT = Number(process.env.PORT || 4000);
+const server = app.listen(PORT, "0.0.0.0", () => {
+  info(`server started on port ${PORT}`);
+
+  const workers = Number(process.env.WORKERS || 2);
+  for (let i = 1; i <= workers; i++) startWorker(i);
+});
+
+// Graceful shutdown
+const gracefulShutdown = (signal) => {
+  info(`${signal} received, shutting down gracefully`);
+  server.close(() => {
+    info("server closed");
+    process.exit(0);
   });
-});
+};
 
-app.listen(4000, "0.0.0.0", () => {
-  info("server started on port 4000");
-
-  startWorker(1);
-  startWorker(2);
-});
+process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));
+process.on("SIGINT", () => gracefulShutdown("SIGINT"));

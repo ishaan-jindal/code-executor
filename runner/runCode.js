@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import os from "os";
 import { JobStatus } from "../jobs/jobTypes.js";
 
 import { compileC } from "./compileC.js";
@@ -7,7 +8,7 @@ import { runBinary } from "./runBinary.js";
 import { runPython } from "./runPython.js";
 
 export default async function runCode(job) {
-  const dir = fs.mkdtempSync("/tmp/run-");
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-"));
 
   try {
     if (job.language === "c") {
@@ -19,7 +20,7 @@ export default async function runCode(job) {
         return {
           status: JobStatus.COMPILE_ERROR,
           stdout: "",
-          stderr: err.stderr || "Compilation failed",
+          stderr: err.stderr || (err.message || "Compilation failed"),
           exit_code: null,
         };
       }
@@ -46,6 +47,10 @@ export default async function runCode(job) {
       exit_code: null,
     };
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });
+    } catch (e) {
+      // ignore cleanup errors
+    }
   }
 }

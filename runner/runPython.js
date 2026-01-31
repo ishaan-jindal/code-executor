@@ -1,17 +1,22 @@
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import path from "path";
 import { JobStatus } from "../jobs/jobTypes.js";
+import { truncateOutput, MAX_OUTPUT_SIZE } from "../utils/outputHandler.js";
 
 const SECCOMP = path.resolve("./seccomp-runtime.json");
 
 export function runPython(dir, stdin) {
-  return new Promise((resolve) => {
+  const containerId = `runner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+  return new Promise((resolve, reject) => {
     const child = spawn(
       "docker",
       [
         "run",
         "--rm",
         "-i",
+        "--name",
+        containerId,
 
         "--runtime=runsc",
 
@@ -44,29 +49,75 @@ export function runPython(dir, stdin) {
 
     let stdout = "",
       stderr = "";
+    let truncated = false;
 
-    child.stdout.on("data", (d) => (stdout += d));
-    child.stderr.on("data", (d) => (stderr += d));
+    let finished = false;
+    const done = (result) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(killTimer);
+      resolve(result);
+    };
+
+    child.stdout.on("data", (d) => {
+      if (!truncated && stdout.length + d.length > MAX_OUTPUT_SIZE) {
+        truncated = true;
+        stdout = truncateOutput(stdout);
+      }
+      if (!truncated) {
+        stdout += d;
+      }
+    });
+    child.stderr.on("data", (d) => {
+      if (!truncated && stderr.length + d.length > MAX_OUTPUT_SIZE) {
+        truncated = true;
+        stderr = truncateOutput(stderr);
+      }
+      if (!truncated) {
+        stderr += d;
+      }
+    });
 
     child.stdin.write(stdin ?? "");
     child.stdin.end();
 
-    setTimeout(() => {
-      child.kill("SIGKILL");
-      resolve({
+    const killTimer = setTimeout(() => {
+      // First, explicitly kill the container
+      try {
+        spawnSync("docker", ["kill", containerId], { timeout: 1000 });
+      } catch (e) {
+        // ignore if docker kill fails
+      }
+
+      // Then kill the docker process
+      try {
+        child.kill("SIGKILL");
+      } catch (e) {
+        // ignore
+      }
+
+      done({
         status: JobStatus.TIME_LIMIT_EXCEEDED,
-        stdout,
-        stderr,
+        stdout: truncateOutput(stdout),
+        stderr: truncateOutput(stderr),
+        exit_code: null,
       });
-    }, 2000);
+    }, Number(process.env.EXEC_TIMEOUT_MS || 2000));
 
     child.on("close", (code) => {
-      resolve({
+      done({
         status: code === 0 ? JobStatus.ACCEPTED : JobStatus.RUNTIME_ERROR,
-        stdout,
-        stderr,
+        stdout: truncateOutput(stdout),
+        stderr: truncateOutput(stderr),
         exit_code: code,
       });
+    });
+
+    child.on("error", (err) => {
+      if (finished) return;
+      finished = true;
+      clearTimeout(killTimer);
+      reject(err);
     });
   });
 }
