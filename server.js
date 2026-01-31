@@ -7,6 +7,7 @@ import { info, error as logError } from "./logs/logger.js";
 import { ApiError } from "./utils/apiError.js";
 import { ApiResponse } from "./utils/apiResponse.js";
 import { redis } from "./redis/redisClient.js";
+import { metrics } from "./metrics/metricsCollector.js";
 
 import { createJob, getJob } from "./jobs/jobStore.js";
 import { enqueueJob } from "./jobs/jobQueue.js";
@@ -75,6 +76,9 @@ app.post("/submit", async (req, res, next) => {
 
     info(`job queued`, { reqId, jobId });
 
+    // Record metrics
+    metrics.recordSubmission(language);
+
     return res.status(201).json(
       ApiResponse.jobResponse({ id: jobId, status: JobStatus.QUEUED })
     );
@@ -103,6 +107,34 @@ app.get("/result/:id", async (req, res, next) => {
     return res.json(ApiResponse.jobResponse(job, includeOutput));
   } catch (err) {
     next(err);
+  }
+});
+
+// --------------------
+// METRICS (Prometheus)
+// --------------------
+app.get("/metrics", (req, res) => {
+  res.setHeader("Content-Type", "text/plain; version=0.0.4");
+  metrics.updateSystemMetrics();
+  res.send(metrics.getPrometheusMetrics());
+});
+
+// --------------------
+// STATUS (Real-time)
+// --------------------
+app.get("/status", async (req, res) => {
+  try {
+    metrics.updateSystemMetrics();
+    metrics.recordRedisCheck(true);
+    await redis.ping();
+    
+    res.json(metrics.getMetricsSummary());
+  } catch (err) {
+    metrics.recordRedisCheck(false);
+    res.status(503).json({
+      error: "Cannot connect to Redis",
+      message: err.message,
+    });
   }
 });
 
