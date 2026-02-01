@@ -6,10 +6,12 @@
     "dev": "nodemon --config config/nodemon.json server.js",
     "test": "node tests/integration/integration.test.js",
     "test:metrics": "node tests/unit/metrics.test.js",
-    "diagnose": "node scripts/diagnose.js"
+    "diagnose": "node scripts/diagnose.js",
+    "load:test": "k6 run scripts/load-test.js"
   },
   "dependencies": {
     "body-parser": "^2.2.1",
+    "dotenv": "^16.4.7",
     "express": "^5.2.1",
     "ioredis": "^5.9.2"
   },

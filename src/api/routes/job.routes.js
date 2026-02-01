@@ -23,11 +23,19 @@ router.post("/submit", async (req, res, next) => {
       throw new ApiError(400, "Missing language or code");
     }
 
+    if (stdin !== undefined && typeof stdin !== "string") {
+      throw new ApiError(400, "stdin must be a string");
+    }
+
     info(`submission received`, { reqId });
     info(`code size ${code.length} bytes`, { reqId });
 
     if (code.length > 100_000) {
       throw new ApiError(413, "Code too large");
+    }
+
+    if (stdin && stdin.length > 100_000) {
+      throw new ApiError(413, "stdin too large");
     }
 
     const jobId = crypto.randomUUID();

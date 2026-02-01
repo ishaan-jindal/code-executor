@@ -7,7 +7,7 @@ const SECCOMP = path.resolve("./config/seccomp-runtime.json");
 
 export function runPython(dir, stdin) {
   const containerId = `runner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
+
   // Build docker args with optional gVisor runtime
   const dockerArgs = [
     "run",
@@ -16,12 +16,12 @@ export function runPython(dir, stdin) {
     "--name",
     containerId,
   ];
-  
+
   // Only add gVisor runtime if available (can be disabled via env var)
   if (process.env.DISABLE_GVISOR !== "true") {
     dockerArgs.push("--runtime=runsc");
   }
-  
+
   dockerArgs.push(
     "--memory=64m",
     "--cpus=0.5",
@@ -78,8 +78,8 @@ export function runPython(dir, stdin) {
       }
     });
 
-    child.stdin.write(stdin ?? "");
-    child.stdin.end();
+    const input = stdin == null ? "" : String(stdin);
+    child.stdin.end(input);
 
     const killTimer = setTimeout(() => {
       // First, explicitly kill the container
