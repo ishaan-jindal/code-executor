@@ -13,6 +13,12 @@ import {
   generateRefreshToken,
   verifyToken,
 } from "../../core/auth/jwtUtils.js";
+import {
+  generateApiKey,
+  listApiKeys,
+  revokeApiKey,
+} from "../../core/auth/apiKeyStore.js";
+import { authenticateJWT } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -194,6 +200,98 @@ router.get("/me", async (req, res, next) => {
       data: safeUser,
     });
   } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Generate API Key
+ * POST /auth/api-keys
+ * Requires: Authentication (JWT)
+ */
+router.post("/api-keys", authenticateJWT, async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    const userId = req.user.id;
+
+    if (!name || name.trim().length === 0) {
+      throw new ApiError(400, "API key name is required");
+    }
+
+    if (name.length > 100) {
+      throw new ApiError(400, "API key name must be 100 characters or less");
+    }
+
+    const apiKeyData = await generateApiKey(userId, name.trim());
+
+    return res.status(201).json({
+      success: true,
+      data: {
+        key: apiKeyData.key, // Only time the raw key is shown
+        keyId: apiKeyData.keyId,
+        name: apiKeyData.name,
+        createdAt: apiKeyData.createdAt,
+        warning: "Save this key securely. You won't be able to see it again.",
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * List API Keys
+ * GET /auth/api-keys
+ * Requires: Authentication (JWT)
+ */
+router.get("/api-keys", authenticateJWT, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    const keys = await listApiKeys(userId);
+
+    return res.json({
+      success: true,
+      data: {
+        keys,
+        count: keys.length,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Revoke API Key
+ * DELETE /auth/api-keys/:keyId
+ * Requires: Authentication (JWT)
+ */
+router.delete("/api-keys/:keyId", authenticateJWT, async (req, res, next) => {
+  try {
+    const { keyId } = req.params;
+    const userId = req.user.id;
+
+    if (!keyId) {
+      throw new ApiError(400, "Key ID is required");
+    }
+
+    const revoked = await revokeApiKey(userId, keyId);
+
+    if (!revoked) {
+      throw new ApiError(404, "API key not found");
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        message: "API key revoked successfully",
+        keyId,
+      },
+    });
+  } catch (err) {
+    if (err.message.includes("Unauthorized")) {
+      return next(new ApiError(403, "Cannot revoke API key that doesn't belong to you"));
+    }
     next(err);
   }
 });

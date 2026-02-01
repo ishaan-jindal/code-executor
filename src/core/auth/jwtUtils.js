@@ -14,6 +14,7 @@ export function generateAccessToken(user) {
     email: user.email,
     tier: user.tier,
     rateLimit: user.rateLimit,
+    role: user.role || "user",
     type: "access",
   };
   

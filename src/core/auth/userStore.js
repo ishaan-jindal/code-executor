@@ -6,7 +6,7 @@ import bcrypt from "bcryptjs";
  */
 
 export async function createUser(userData) {
-  const { username, email, password, tier = "free" } = userData;
+  const { username, email, password, tier = "free", role = "user" } = userData;
   
   // Check if user exists
   const existing = await redis.get(`user:username:${username}`);
@@ -30,6 +30,7 @@ export async function createUser(userData) {
     email,
     passwordHash,
     tier,
+    role,
     rateLimit: getTierRateLimit(tier),
     createdAt: Date.now(),
   };

@@ -1,17 +1,42 @@
 import { verifyToken } from "../core/auth/jwtUtils.js";
 import { getUserById } from "../core/auth/userStore.js";
+import { validateApiKey } from "../core/auth/apiKeyStore.js";
 import { ApiError } from "../utils/apiError.js";
 
 /**
- * JWT Authentication Middleware
- * Validates JWT token and attaches user to request
+ * Hybrid Authentication Middleware
+ * Supports both JWT tokens (Authorization: Bearer) and API keys (X-API-Key)
+ * Validates credentials and attaches user to request
  */
 export async function authenticateJWT(req, res, next) {
   try {
+    // Try API Key first (X-API-Key header)
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey) {
+      const user = await validateApiKey(apiKey);
+      if (!user) {
+        throw new ApiError(401, "Invalid API key");
+      }
+      
+      // Attach user to request (same format as JWT)
+      req.user = {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        tier: user.tier,
+        rateLimit: user.rateLimit,
+        role: user.role || "user",
+        authMethod: "apikey",
+      };
+      
+      return next();
+    }
+
+    // Fall back to JWT token (Authorization: Bearer)
     const authHeader = req.headers.authorization;
     
     if (!authHeader) {
-      throw new ApiError(401, "No authorization header provided");
+      throw new ApiError(401, "No authorization credentials provided. Use Authorization: Bearer <token> or X-API-Key: <key>");
     }
     
     if (!authHeader.startsWith("Bearer ")) {
@@ -53,6 +78,8 @@ export async function authenticateJWT(req, res, next) {
       email: user.email,
       tier: user.tier,
       rateLimit: user.rateLimit,
+      role: user.role || "user",
+      authMethod: "jwt",
     };
     
     next();
@@ -62,11 +89,31 @@ export async function authenticateJWT(req, res, next) {
 }
 
 /**
- * Optional JWT Authentication
- * Attaches user if valid token provided, but doesn't fail if missing
+ * Optional Authentication
+ * Supports both JWT and API keys but doesn't fail if missing
+ * Attaches user if valid credentials provided
  */
 export async function optionalAuth(req, res, next) {
   try {
+    // Try API Key first
+    const apiKey = req.headers["x-api-key"];
+    if (apiKey) {
+      const user = await validateApiKey(apiKey);
+      if (user) {
+        req.user = {
+          id: user.id,
+          username: user.username,
+          email: user.email,
+          tier: user.tier,
+          rateLimit: user.rateLimit,
+          role: user.role || "user",
+          authMethod: "apikey",
+        };
+      }
+      return next();
+    }
+
+    // Try JWT token
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
@@ -90,6 +137,7 @@ export async function optionalAuth(req, res, next) {
             email: user.email,
             tier: user.tier,
             rateLimit: user.rateLimit,
+            role: user.role || "user",
           };
         }
       }

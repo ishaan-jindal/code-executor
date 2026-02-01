@@ -37,8 +37,7 @@ export function runPython(dir, stdin) {
     "--user=runner",
     "-v",
     `${dir}:/app`,
-    "runner-runtime",
-    "python3",
+    "runner-py",
     "main.py"
   );
 

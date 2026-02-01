@@ -9,6 +9,15 @@ Secure, isolated code execution service with JWT authentication, user-based rate
 - **POST /auth/login** - Login and get JWT tokens
 - **POST /auth/refresh** - Refresh access token
 - **GET /auth/me** - Get current user profile
+- **POST /auth/api-keys** - Generate API key (JWT required)
+- **GET /auth/api-keys** - List API keys
+- **DELETE /auth/api-keys/:keyId** - Revoke API key
+
+### Admin (Requires Admin Role)
+- **POST /admin/users/:userId/upgrade** - Upgrade user tier
+- **GET /admin/users/:userId** - View user details
+- **POST /admin/users/:userId/make-admin** - Grant admin role
+- **POST /admin/users/:userId/revoke-admin** - Revoke admin role
 
 ### Core Execution (Requires Authentication)
 - **POST /submit** - Submit code for execution (rate limited by tier)
@@ -38,10 +47,13 @@ cp .env.example .env
 npm install
 npm run dev
 
-# 5. Test authentication
+# 5. Seed database with test users (optional)
+npm run seed
+
+# 6. Test authentication
 npm run test:auth
 
-# 6. Run integration tests
+# 7. Run integration tests
 npm run test
 ```
 
@@ -86,6 +98,47 @@ Headers returned with each authenticated request:
 - `X-RateLimit-Remaining`: Remaining requests this minute
 - `X-RateLimit-Reset`: Unix timestamp when limit resets
 
+## Test Users & Admin Access
+
+Run the seeding script to populate the database with test users:
+
+```bash
+npm run seed
+```
+
+This creates:
+- **admin** / AdminPass123! - Admin user (enterprise tier)
+- **alice** / AlicePass123! - Free tier user
+- **bob** / BobPass123! - Starter tier user
+- **charlie** / CharliePass123! - Professional tier user
+- **diana** / DianaPass123! - Enterprise tier user
+
+### Admin Operations
+
+With admin credentials, you can:
+- Upgrade user tiers
+- View user details
+- Grant/revoke admin privileges
+- View admin statistics
+
+Example:
+```bash
+# Login as admin
+ADMIN_TOKEN=$(curl -s -X POST http://localhost:4000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"AdminPass123!"}' | jq '.data.accessToken' -r)
+
+# Upgrade a user to professional tier
+curl -X POST http://localhost:4000/admin/users/USER_ID/upgrade \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"newTier":"professional"}'
+```
+
+See [docs/API.md](docs/API.md) for complete admin API documentation.
+
+---
+
 ## Monitoring Stack
 
 ```bash
@@ -128,11 +181,9 @@ tests/                   # Test suites
 ## Documentation
 
 - **[docs/API.md](docs/API.md)** - Complete API documentation with examples
-- **[docs/STDIN.md](docs/STDIN.md)** - stdin handling guide with 10+ examples
 - **[docs/MONITORING.md](docs/MONITORING.md)** - Metrics, dashboards, alerting
 - **[docs/DOCKER.md](docs/DOCKER.md)** - Docker images and security
 - **[docs/TESTING.md](docs/TESTING.md)** - Testing procedures
-- **[docs/GVISOR_FALLBACK.md](docs/GVISOR_FALLBACK.md)** - gVisor setup
 
 ## Features
 

@@ -12,9 +12,19 @@ http://localhost:4000
 
 ## Authentication
 
-The API uses JWT (JSON Web Token) authentication. Most endpoints require a valid access token.
+The API supports two authentication methods:
 
-### Getting Started
+### 1. JWT Tokens (Recommended for user sessions)
+- Short-lived access tokens (15 minutes)
+- Long-lived refresh tokens (7 days)
+- Use for web applications and user-facing interfaces
+
+### 2. API Keys (Recommended for programmatic access)
+- Long-lived credentials for machine-to-machine communication
+- Use for backend services, scripts, and automation
+- Format: `sk_live_<64_character_hex>`
+
+### Getting Started with JWT
 
 1. **Register**: Create a new user account at `POST /auth/register`
 2. **Login**: Get access and refresh tokens at `POST /auth/login`
@@ -23,6 +33,18 @@ The API uses JWT (JSON Web Token) authentication. Most endpoints require a valid
    Authorization: Bearer <your-access-token>
    ```
 4. **Refresh Token**: When access token expires (15 minutes), use refresh token at `POST /auth/refresh`
+
+### Getting Started with API Keys
+
+1. **Login**: Authenticate with JWT to get access token
+2. **Generate Key**: Create an API key at `POST /auth/api-keys`
+3. **Use Key**: Include the API key in the `X-API-Key` header:
+   ```
+   X-API-Key: sk_live_abc123...
+   ```
+4. **Manage Keys**: List and revoke keys via `/auth/api-keys` endpoints
+
+**Important:** API keys are shown only once when created. Store them securely.
 
 ### Rate Limiting
 
@@ -239,6 +261,330 @@ curl -X GET http://localhost:4000/auth/me \
 
 ---
 
+### 5. Generate API Key
+
+**Endpoint:** `POST /auth/api-keys`
+
+**Description:** Generate a new API key for programmatic access. Requires JWT authentication.
+
+**Request Headers:**
+```
+Authorization: Bearer <access-token>
+```
+
+**Request Body:**
+```json
+{
+  "name": "Production Server"
+}
+```
+
+**Response (201):**
+```json
+{
+  "success": true,
+  "data": {
+    "key": "sk_live_a1b2c3d4e5f6...",
+    "keyId": "apikey_1738339200000_abc123",
+    "name": "Production Server",
+    "createdAt": 1738339200000,
+    "warning": "Save this key securely. You won't be able to see it again."
+  }
+}
+```
+
+**Error Responses:**
+- `400` - Missing or invalid name
+- `401` - Not authenticated
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:4000/auth/api-keys \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My API Key"
+  }'
+```
+
+**⚠️ Important:** The raw API key is only shown once. Store it securely.
+
+---
+
+### 6. List API Keys
+
+**Endpoint:** `GET /auth/api-keys`
+
+**Description:** List all API keys for the authenticated user (raw keys are never returned).
+
+**Request Headers:**
+```
+Authorization: Bearer <access-token>
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "keys": [
+      {
+        "keyId": "apikey_1738339200000_abc123",
+        "name": "Production Server",
+        "createdAt": 1738339200000,
+        "lastUsedAt": 1738339500000
+      },
+      {
+        "keyId": "apikey_1738340000000_def456",
+        "name": "Development",
+        "createdAt": 1738340000000,
+        "lastUsedAt": null
+      }
+    ],
+    "count": 2
+  }
+}
+```
+
+**Error Responses:**
+- `401` - Not authenticated
+
+**cURL Example:**
+```bash
+curl -X GET http://localhost:4000/auth/api-keys \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+---
+
+### 7. Revoke API Key
+
+**Endpoint:** `DELETE /auth/api-keys/:keyId`
+
+**Description:** Revoke (delete) an API key. The key will no longer work for authentication.
+
+**Request Headers:**
+```
+Authorization: Bearer <access-token>
+```
+
+**URL Parameters:**
+- `keyId`: The API key ID to revoke
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "API key revoked successfully",
+    "keyId": "apikey_1738339200000_abc123"
+  }
+}
+```
+
+**Error Responses:**
+- `401` - Not authenticated
+- `403` - Key doesn't belong to you
+- `404` - Key not found
+
+**cURL Example:**
+```bash
+curl -X DELETE http://localhost:4000/auth/api-keys/apikey_1738339200000_abc123 \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN"
+```
+
+---
+
+## Admin Endpoints
+
+⚠️ **All admin endpoints require:**
+- Valid JWT authentication
+- Admin role (`role: "admin"`)
+
+Request headers:
+```
+Authorization: Bearer <admin-access-token>
+Content-Type: application/json
+```
+
+### 5. Upgrade User Tier
+
+**Endpoint:** `POST /admin/users/:userId/upgrade`
+
+**Description:** Change a user's tier (admin only).
+
+**URL Parameters:**
+- `userId`: User ID to upgrade
+
+**Request Body:**
+```json
+{
+  "newTier": "professional"
+}
+```
+
+**Valid Tiers:**
+- `free` - 10 requests/minute
+- `starter` - 50 requests/minute
+- `professional` - 100 requests/minute
+- `enterprise` - 500 requests/minute
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user_id",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "tier": "professional",
+      "rateLimit": 100,
+      "role": "user"
+    },
+    "message": "Upgraded johndoe from free to professional"
+  }
+}
+```
+
+**Error Responses:**
+- `400` - Invalid tier
+- `401` - Not authenticated
+- `403` - Not admin
+- `404` - User not found
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:4000/admin/users/user_12345/upgrade \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "newTier": "professional"
+  }'
+```
+
+---
+
+### 6. Get User Details
+
+**Endpoint:** `GET /admin/users/:userId`
+
+**Description:** Get detailed information about a user (admin only).
+
+**URL Parameters:**
+- `userId`: User ID to retrieve
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user_id",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "tier": "professional",
+      "role": "user",
+      "rateLimit": 100,
+      "createdAt": 1738339200000
+    }
+  }
+}
+```
+
+**Error Responses:**
+- `401` - Not authenticated
+- `403` - Not admin
+- `404` - User not found
+
+**cURL Example:**
+```bash
+curl -X GET http://localhost:4000/admin/users/user_12345 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 7. Grant Admin Role
+
+**Endpoint:** `POST /admin/users/:userId/make-admin`
+
+**Description:** Grant admin privileges to a user (admin only).
+
+**URL Parameters:**
+- `userId`: User ID to promote
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user_id",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "tier": "enterprise",
+      "role": "admin"
+    },
+    "message": "Made johndoe an admin"
+  }
+}
+```
+
+**Error Responses:**
+- `400` - User already admin / Cannot change own role
+- `401` - Not authenticated
+- `403` - Not admin
+- `404` - User not found
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:4000/admin/users/user_12345/make-admin \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 8. Revoke Admin Role
+
+**Endpoint:** `POST /admin/users/:userId/revoke-admin`
+
+**Description:** Remove admin privileges from a user (admin only).
+
+**URL Parameters:**
+- `userId`: User ID to demote
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": {
+      "id": "user_id",
+      "username": "johndoe",
+      "email": "john@example.com",
+      "tier": "professional",
+      "role": "user"
+    },
+    "message": "Revoked admin role from johndoe"
+  }
+}
+```
+
+**Error Responses:**
+- `400` - User not admin / Cannot revoke own role
+- `401` - Not authenticated
+- `403` - Not admin
+- `404` - User not found
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:4000/admin/users/user_12345/revoke-admin \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
 ## Code Execution Endpoints
 
 ### 5. Health Check
@@ -277,6 +623,12 @@ curl -X GET http://localhost:4000/health
 ```
 Content-Type: application/json
 Authorization: Bearer <access-token>
+```
+
+Or with API key:
+```
+Content-Type: application/json
+X-API-Key: sk_live_abc123...
 ```
 
 **Request Body:**
@@ -377,6 +729,11 @@ curl -X POST http://localhost:4000/submit \
 **Request Headers:**
 ```
 Authorization: Bearer <access-token>
+```
+
+Or with API key:
+```
+X-API-Key: sk_live_abc123...
 ```
 
 **URL Parameters:**
@@ -758,6 +1115,47 @@ curl -X GET http://localhost:4000/auth/me \
   -H "Authorization: Bearer $TOKEN" | jq .
 ```
 
+**Generate API key (requires JWT):**
+```bash
+curl -X POST http://localhost:4000/auth/api-keys \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "My API Key"
+  }' | jq .
+```
+
+**List API keys:**
+```bash
+curl -X GET http://localhost:4000/auth/api-keys \
+  -H "Authorization: Bearer $TOKEN" | jq .
+```
+
+**Revoke API key:**
+```bash
+curl -X DELETE http://localhost:4000/auth/api-keys/apikey_1738339200000_abc123 \
+  -H "Authorization: Bearer $TOKEN" | jq .
+```
+
+### Code Execution with API Keys
+
+**Submit code with API key:**
+```bash
+curl -X POST http://localhost:4000/submit \
+  -H "X-API-Key: sk_live_abc123..." \
+  -H "Content-Type: application/json" \
+  -d '{
+    "language": "python",
+    "code": "print(\"Hello, World!\")"
+  }' | jq .
+```
+
+**Get result with API key:**
+```bash
+curl -X GET http://localhost:4000/result/job_id \
+  -H "X-API-Key: sk_live_abc123..." | jq .
+```
+
 ### Code Execution
 
 **Health check (no auth needed):**
@@ -830,6 +1228,44 @@ done
 **Metrics (Prometheus):**
 ```bash
 curl http://localhost:4000/metrics | head -20
+```
+
+### Admin Operations
+
+**Get admin token:**
+```bash
+ADMIN_TOKEN=$(curl -s -X POST http://localhost:4000/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"AdminPass123!"}' \
+  | jq '.data.accessToken' -r)
+```
+
+**Upgrade user tier:**
+```bash
+curl -X POST http://localhost:4000/admin/users/USER_ID/upgrade \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "newTier": "professional"
+  }' | jq .
+```
+
+**Get user details:**
+```bash
+curl -X GET http://localhost:4000/admin/users/USER_ID \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
+```
+
+**Make user admin:**
+```bash
+curl -X POST http://localhost:4000/admin/users/USER_ID/make-admin \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
+```
+
+**Revoke admin role:**
+```bash
+curl -X POST http://localhost:4000/admin/users/USER_ID/revoke-admin \
+  -H "Authorization: Bearer $ADMIN_TOKEN" | jq .
 ```
 
 ### Complete Workflow Script
