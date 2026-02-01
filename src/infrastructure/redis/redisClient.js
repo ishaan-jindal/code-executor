@@ -27,3 +27,19 @@ redisBlocking.on("connect", () => {
 redisBlocking.on("error", (err) => {
   console.error("[REDIS-BLOCKING] error", err.message);
 });
+
+/**
+ * Get the main Redis client instance
+ * @returns {Redis} Redis client
+ */
+export function getRedis() {
+  return redis;
+}
+
+/**
+ * Get the blocking Redis client instance (for BLPOP operations)
+ * @returns {Redis} Blocking Redis client
+ */
+export function getRedisBlocking() {
+  return redisBlocking;
+}

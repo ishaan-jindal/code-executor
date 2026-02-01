@@ -1,12 +1,18 @@
 # Code-Executor
 
-Secure, isolated code execution service using Docker with gVisor sandbox and comprehensive monitoring.
+Secure, isolated code execution service with JWT authentication, user-based rate limiting, Docker + gVisor sandbox, and comprehensive monitoring.
 
 ## Endpoints
 
-### Core Execution
-- **POST /submit** - Submit code for execution
-- **GET /result/:id** - Poll job result
+### Authentication
+- **POST /auth/register** - Register new user
+- **POST /auth/login** - Login and get JWT tokens
+- **POST /auth/refresh** - Refresh access token
+- **GET /auth/me** - Get current user profile
+
+### Core Execution (Requires Authentication)
+- **POST /submit** - Submit code for execution (rate limited by tier)
+- **GET /result/:id** - Poll job result (only your jobs)
 
 ### Monitoring & Diagnostics  
 - **GET /health** - Health check with Redis connectivity
@@ -24,16 +30,61 @@ docker build -f deployment/docker/runner-runtime.Dockerfile -t runner-runtime .
 # 2. Start Redis (if not running)
 redis-server
 
-# 3. Start services
+# 3. Configure environment
+cp .env.example .env
+# Edit .env and set JWT_SECRET to a secure random value
+
+# 4. Start services
 npm install
 npm run dev
 
-# 4. Run tests
-npm run test
+# 5. Test authentication
+npm run test:auth
 
-# 5. Check status
-curl http://localhost:4000/status
+# 6. Run integration tests
+npm run test
 ```
+
+## Authentication & Usage
+
+### 1. Register a User
+
+```bash
+curl -X POST http://localhost:4000/auth/register \
+  -H "Content-Type: application/json" \
+  -d '{
+    "username": "johndoe",
+    "email": "john@example.com",
+    "password": "SecurePass123"
+  }'
+```
+
+Response includes `accessToken` (15min) and `refreshToken` (7 days).
+
+### 2. Submit Code with Authentication
+
+```bash
+curl -X POST http://localhost:4000/submit \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
+  -d '{
+    "language": "python",
+    "code": "print(\"Hello, World!\")"
+  }'
+```
+
+### 3. Rate Limiting
+
+Rate limits based on user tier:
+- **free**: 10 requests/minute
+- **starter**: 50 requests/minute
+- **professional**: 100 requests/minute
+- **enterprise**: 500 requests/minute
+
+Headers returned with each authenticated request:
+- `X-RateLimit-Limit`: Your tier's limit
+- `X-RateLimit-Remaining`: Remaining requests this minute
+- `X-RateLimit-Reset`: Unix timestamp when limit resets
 
 ## Monitoring Stack
 
@@ -54,8 +105,9 @@ See [docs/MONITORING.md](docs/MONITORING.md) for complete guide.
 ```
 src/
 ├── api/                    # API layer
-│   └── routes/            # Express route handlers
+│   └── routes/            # Express route handlers (auth, jobs, health)
 ├── core/                  # Business logic
+│   ├── auth/             # User management, JWT utils
 │   ├── jobs/             # Job management
 │   ├── limits/           # Execution limiting
 │   ├── runner/           # Code execution
@@ -64,7 +116,7 @@ src/
 │   ├── logs/            # Logging
 │   ├── metrics/         # Metrics collection
 │   └── redis/           # Redis client
-├── middleware/           # Express middleware
+├── middleware/           # Express middleware (auth, rate limiting, errors)
 └── utils/               # Utility functions
 
 config/                   # Configuration files
@@ -84,14 +136,34 @@ tests/                   # Test suites
 
 ## Features
 
-✅ Secure Docker execution with gVisor sandbox  
-✅ Support for Python 3 and C (GCC)  
-✅ Resource limits (memory, CPU, processes)  
-✅ Queue-based job distribution  
-✅ Comprehensive metrics & monitoring  
-✅ Prometheus integration  
-✅ Grafana dashboards  
-✅ Health checks and diagnostics  
-✅ Redis-backed job persistence  
-✅ Graceful shutdown  
-✅ Integration tests
+✅ **Authentication & Authorization**
+  - JWT-based authentication (access + refresh tokens)
+  - User registration and login
+  - Bcrypt password hashing
+  - User-based rate limiting by tier
+
+✅ **Security**
+  - Docker isolation with gVisor sandbox
+  - Resource limits (64MB memory, 0.5 CPU)
+  - Seccomp filtering
+  - User isolation (users can only access their own jobs)
+
+✅ **Code Execution**
+  - Python 3.12 and C (GCC 13) support
+  - stdin/stdout/stderr capture
+  - Timeout protection (2s default)
+  - Queue-based job distribution
+
+✅ **Monitoring & Observability**
+  - Comprehensive metrics collection
+  - Prometheus integration
+  - Grafana dashboards (11 panels)
+  - Health checks and diagnostics
+  - Request logging with correlation IDs
+
+✅ **Performance & Reliability**
+  - Redis-backed persistence
+  - Graceful shutdown
+  - Rate limiting with sliding window
+  - Integration tests
+  - Load testing with k6

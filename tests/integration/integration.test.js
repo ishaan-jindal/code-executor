@@ -3,8 +3,11 @@ import { JobStatus } from "../../src/core/jobs/jobTypes.js";
 
 const BASE_URL = "http://localhost:4000";
 
+// Store auth token
+let accessToken = null;
+
 // Helper to make HTTP requests
-function makeRequest(method, path, body = null) {
+function makeRequest(method, path, body = null, includeAuth = false) {
   return new Promise((resolve, reject) => {
     const url = new URL(path, BASE_URL);
     const options = {
@@ -16,6 +19,11 @@ function makeRequest(method, path, body = null) {
         "Content-Type": "application/json",
       },
     };
+
+    // Add authentication if requested and token is available
+    if (includeAuth && accessToken) {
+      options.headers["Authorization"] = `Bearer ${accessToken}`;
+    }
 
     const req = http.request(options, (res) => {
       let data = "";
@@ -59,6 +67,26 @@ async function runTests() {
   console.log("🧪 Starting integration tests...\n");
 
   try {
+    // Test 0: Register and login for authentication
+    console.log("✓ Test 0: Authentication Setup");
+    const testUsername = `testuser_${Date.now()}`;
+    const testEmail = `test_${Date.now()}@example.com`;
+    const testPassword = "TestPass123!";
+
+    const registerRes = await makeRequest("POST", "/auth/register", {
+      username: testUsername,
+      email: testEmail,
+      password: testPassword,
+    });
+
+    if (registerRes.status !== 201 || !registerRes.body.success) {
+      throw new Error(`Registration failed: ${registerRes.body.error || 'Unknown error'}`);
+    }
+
+    accessToken = registerRes.body.data.accessToken;
+    console.log(`  Test user created: ${testUsername}`);
+    console.log(`  Token obtained\n`);
+
     // Test 1: Health check
     console.log("✓ Test 1: Health Check");
     const health = await makeRequest("GET", "/health");
@@ -67,13 +95,13 @@ async function runTests() {
     }
     console.log(`  Status: ${health.body.status}\n`);
 
-    // Test 2: Submit Python code
-    console.log("✓ Test 2: Submit Python Code");
+    // Test 2: Submit Python code (with auth)
+    console.log("✓ Test 2: Submit Python Code (Authenticated)");
     const submitRes = await makeRequest("POST", "/submit", {
       language: "python",
       code: 'print("Hello, World!")',
       stdin: "",
-    });
+    }, true);
     if (submitRes.status !== 201) {
       throw new Error(`Expected 201, got ${submitRes.status}`);
     }
@@ -82,7 +110,7 @@ async function runTests() {
 
     // Test 3: Poll job status (should be queued or running)
     console.log("✓ Test 3: Poll Job Status (Queued/Running)");
-    const statusRes = await makeRequest("GET", `/result/${jobId}`);
+    const statusRes = await makeRequest("GET", `/result/${jobId}`, null, true);
     const validStates = [JobStatus.QUEUED, JobStatus.RUNNING];
     if (!validStates.includes(statusRes.body.status)) {
       console.log(`  Warning: Got unexpected status ${statusRes.body.status}`);
@@ -95,7 +123,7 @@ async function runTests() {
     let result = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
-      const res = await makeRequest("GET", `/result/${jobId}`);
+      const res = await makeRequest("GET", `/result/${jobId}`, null, true);
       if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
         result = res.body;
         break;
@@ -152,7 +180,7 @@ async function runTests() {
         }
       `,
       stdin: "",
-    });
+    }, true);
 
     if (cSubmit.status !== 201) {
       throw new Error(`Expected 201, got ${cSubmit.status}`);
@@ -165,7 +193,7 @@ async function runTests() {
     let cResult = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
-      const res = await makeRequest("GET", `/result/${cJobId}`);
+      const res = await makeRequest("GET", `/result/${cJobId}`, null, true);
       if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
         cResult = res.body;
         break;
@@ -182,9 +210,9 @@ async function runTests() {
     console.log(`  Status: ${cResult.status}`);
     console.log(`  Output: ${cResult.stdout.trim()}\n`);
 
-    // Test 7: Invalid job ID
+    // Test 7: Invalid Job ID
     console.log("✓ Test 7: Invalid Job ID");
-    const invalidRes = await makeRequest("GET", "/result/invalid-id");
+    const invalidRes = await makeRequest("GET", "/result/invalid-id", null, true);
     if (invalidRes.status !== 404) {
       throw new Error(`Expected 404, got ${invalidRes.status}`);
     }
@@ -194,7 +222,7 @@ async function runTests() {
     console.log("✓ Test 8: Missing Language/Code");
     const missingRes = await makeRequest("POST", "/submit", {
       language: "python",
-    });
+    }, true);
     if (missingRes.status !== 400) {
       throw new Error(`Expected 400, got ${missingRes.status}`);
     }
@@ -205,7 +233,7 @@ async function runTests() {
     const largeRes = await makeRequest("POST", "/submit", {
       language: "python",
       code: "x = " + '"a"'.repeat(150000),
-    });
+    }, true);
     if (largeRes.status !== 413) {
       throw new Error(`Expected 413, got ${largeRes.status}`);
     }
@@ -216,13 +244,13 @@ async function runTests() {
     const errorRes = await makeRequest("POST", "/submit", {
       language: "python",
       code: "1 / 0",
-    });
+    }, true);
     const errorJobId = errorRes.body.job_id;
 
     let errorResult = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
-      const res = await makeRequest("GET", `/result/${errorJobId}`);
+      const res = await makeRequest("GET", `/result/${errorJobId}`, null, true);
       if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
         errorResult = res.body;
         break;
@@ -241,7 +269,7 @@ async function runTests() {
       language: "python",
       code: 'name = input("Enter name: ")\nprint(f"Hello, {name}!")',
       stdin: "Alice",
-    });
+    }, true);
     if (stdinRes.status !== 201) {
       throw new Error(`Expected 201, got ${stdinRes.status}`);
     }
@@ -250,7 +278,7 @@ async function runTests() {
     let stdinResult = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
-      const res = await makeRequest("GET", `/result/${stdinJobId}`);
+      const res = await makeRequest("GET", `/result/${stdinJobId}`, null, true);
       if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
         stdinResult = res.body;
         break;
@@ -284,7 +312,7 @@ async function runTests() {
         }
       `,
       stdin: "7",
-    });
+    }, true);
     if (cStdinRes.status !== 201) {
       throw new Error(`Expected 201, got ${cStdinRes.status}`);
     }
@@ -293,7 +321,7 @@ async function runTests() {
     let cStdinResult = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
-      const res = await makeRequest("GET", `/result/${cStdinJobId}`);
+      const res = await makeRequest("GET", `/result/${cStdinJobId}`, null, true);
       if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
         cStdinResult = res.body;
         break;
@@ -318,7 +346,7 @@ async function runTests() {
       language: "python",
       code: "lines = []\nfor _ in range(3):\n  lines.append(input())\nfor i, line in enumerate(lines, 1):\n  print(f'{i}: {line}')",
       stdin: "first\nsecond\nthird",
-    });
+    }, true);
     if (multiRes.status !== 201) {
       throw new Error(`Expected 201, got ${multiRes.status}`);
     }
@@ -327,7 +355,7 @@ async function runTests() {
     let multiResult = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
-      const res = await makeRequest("GET", `/result/${multiJobId}`);
+      const res = await makeRequest("GET", `/result/${multiJobId}`, null, true);
       if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
         multiResult = res.body;
         break;
@@ -345,6 +373,18 @@ async function runTests() {
     }
     console.log(`  Status: ${multiResult.status}`);
     console.log(`  Output: ${multiResult.stdout.trim()}\n`);
+
+    // Test 14: Unauthenticated request (should fail)
+    console.log("✓ Test 14: Unauthenticated Request (Should Fail)");
+    const unauthRes = await makeRequest("POST", "/submit", {
+      language: "python",
+      code: 'print("test")',
+    }, false);
+    if (unauthRes.status !== 401) {
+      throw new Error(`Expected 401 Unauthorized, got ${unauthRes.status}`);
+    }
+    console.log(`  Status Code: ${unauthRes.status}`);
+    console.log(`  Correctly rejected unauthenticated request\n`);
 
     console.log("✅ All tests passed!\n");
   } catch (err) {

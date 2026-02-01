@@ -7,17 +7,21 @@ import { metrics } from "../../infrastructure/metrics/metricsCollector.js";
 import { createJob, getJob } from "../../core/jobs/jobStore.js";
 import { enqueueJob } from "../../core/jobs/jobQueue.js";
 import { JobStatus } from "../../core/jobs/jobTypes.js";
+import { authenticateJWT } from "../../middleware/authMiddleware.js";
+import { rateLimitByUser, checkRateLimit } from "../../middleware/rateLimiter.js";
 
 const router = express.Router();
 
 /**
  * Submit Code for Execution
  * POST /submit
+ * Requires JWT authentication and enforces rate limiting
  */
-router.post("/submit", async (req, res, next) => {
+router.post("/submit", authenticateJWT, rateLimitByUser(), async (req, res, next) => {
   try {
     const { language, code, stdin } = req.body;
     const reqId = req.requestId;
+    const userId = req.user.id;
 
     if (!language || !code) {
       throw new ApiError(400, "Missing language or code");
@@ -27,7 +31,7 @@ router.post("/submit", async (req, res, next) => {
       throw new ApiError(400, "stdin must be a string");
     }
 
-    info(`submission received`, { reqId });
+    info(`submission received`, { reqId, userId });
     info(`code size ${code.length} bytes`, { reqId });
 
     if (code.length > 100_000) {
@@ -42,6 +46,7 @@ router.post("/submit", async (req, res, next) => {
 
     await createJob({
       id: jobId,
+      userId,
       language,
       code,
       stdin: stdin ?? "",
@@ -51,7 +56,7 @@ router.post("/submit", async (req, res, next) => {
 
     await enqueueJob(jobId);
 
-    info(`job queued`, { reqId, jobId });
+    info(`job queued`, { reqId, jobId, userId });
 
     // Record metrics
     metrics.recordSubmission(language);
@@ -67,15 +72,25 @@ router.post("/submit", async (req, res, next) => {
 /**
  * Get Job Result
  * GET /result/:id
+ * Requires JWT authentication - users can only see their own jobs
+ * Rate limit check (doesn't increment)
  */
-router.get("/result/:id", async (req, res, next) => {
+router.get("/result/:id", authenticateJWT, checkRateLimit(), async (req, res, next) => {
   try {
     const jobId = req.params.id;
+    const userId = req.user.id;
     const job = await getJob(jobId);
 
     if (!job) {
       return res.status(404).json(
         ApiResponse.error("Job not found", "JOB_NOT_FOUND")
+      );
+    }
+
+    // Users can only see their own jobs
+    if (job.userId !== userId) {
+      return res.status(403).json(
+        ApiResponse.error("Forbidden", "FORBIDDEN")
       );
     }
 
