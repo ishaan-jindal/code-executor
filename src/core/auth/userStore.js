@@ -104,6 +104,12 @@ export async function getAllUsers(limit = 100, offset = 0) {
   // Get all user data
   const users = [];
   for (const key of keys) {
+    // Skip non-string keys (e.g., user:<id>:apikeys set)
+    const keyType = await redis.type(key);
+    if (keyType !== "string") {
+      continue;
+    }
+
     const data = await redis.get(key);
     if (data) {
       try {

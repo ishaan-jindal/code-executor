@@ -20,6 +20,10 @@ export class ApiResponse {
       status: job.status,
     };
 
+    if (job.metrics) {
+      response.metrics = job.metrics;
+    }
+
     if (includeOutput) {
       response.stdout = job.stdout ?? "";
       response.stderr = job.stderr ?? "";

@@ -830,6 +830,12 @@ X-API-Key: sk_live_abc123...
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "status": "ACCEPTED",
+    "metrics": {
+      "queue_wait_ms": 12,
+      "compile_time_ms": 0,
+      "exec_time_ms": 34,
+      "total_time_ms": 58
+    },
     "stdout": "Hello, World!\n",
     "stderr": "",
     "exit_code": 0
@@ -844,12 +850,24 @@ X-API-Key: sk_live_abc123...
   "data": {
     "id": "550e8400-e29b-41d4-a716-446655440000",
     "status": "RUNTIME_ERROR",
+    "metrics": {
+      "queue_wait_ms": 10,
+      "compile_time_ms": 0,
+      "exec_time_ms": 21,
+      "total_time_ms": 40
+    },
     "stdout": "",
     "stderr": "Traceback (most recent call last):\n  File \"main.py\", line 1, in <module>\n    1/0\nZeroDivisionError: division by zero\n",
     "exit_code": 1
   }
 }
 ```
+
+**Metrics Fields:**
+- `queue_wait_ms` - Time spent in queue before execution
+- `compile_time_ms` - Time spent compiling (0 for interpreted languages)
+- `exec_time_ms` - Execution time inside the container
+- `total_time_ms` - End-to-end time from submit to finish
 
 **Job Status Values:**
 

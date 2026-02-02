@@ -14,23 +14,49 @@ export default async function runCode(job) {
     if (job.language === "c") {
       fs.writeFileSync(path.join(dir, "main.c"), job.code);
 
+      const compileStart = Date.now();
       try {
         await compileC(dir);
       } catch (err) {
+        const compileTime = Date.now() - compileStart;
         return {
           status: JobStatus.COMPILE_ERROR,
           stdout: "",
           stderr: err.stderr || (err.message || "Compilation failed"),
           exit_code: null,
+          metrics: {
+            compile_time_ms: compileTime,
+            exec_time_ms: 0,
+          },
         };
       }
 
-      return await runBinary(dir, job.stdin);
+      const compileTime = Date.now() - compileStart;
+      const execStart = Date.now();
+      const execResult = await runBinary(dir, job.stdin);
+      const execTime = Date.now() - execStart;
+
+      return {
+        ...execResult,
+        metrics: {
+          compile_time_ms: compileTime,
+          exec_time_ms: execTime,
+        },
+      };
     }
 
     if (job.language === "python") {
       fs.writeFileSync(path.join(dir, "main.py"), job.code);
-      return await runPython(dir, job.stdin);
+      const execStart = Date.now();
+      const execResult = await runPython(dir, job.stdin);
+      const execTime = Date.now() - execStart;
+      return {
+        ...execResult,
+        metrics: {
+          compile_time_ms: 0,
+          exec_time_ms: execTime,
+        },
+      };
     }
 
     return {
@@ -38,6 +64,10 @@ export default async function runCode(job) {
       stdout: "",
       stderr: "Unsupported language",
       exit_code: null,
+      metrics: {
+        compile_time_ms: 0,
+        exec_time_ms: 0,
+      },
     };
   } catch (err) {
     return {
@@ -45,6 +75,10 @@ export default async function runCode(job) {
       stdout: "",
       stderr: err?.message || "Internal error",
       exit_code: null,
+      metrics: {
+        compile_time_ms: 0,
+        exec_time_ms: 0,
+      },
     };
   } finally {
     try {

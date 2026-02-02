@@ -31,13 +31,24 @@ export async function startWorker(id) {
       const executionStart = Date.now();
       const result = await executionLimiter.run(() => runCode(job));
       const executionTime = Date.now() - executionStart;
+      const finishedAt = Date.now();
+
+      const compileTime = result.metrics?.compile_time_ms ?? 0;
+      const execTime = result.metrics?.exec_time_ms ?? 0;
+      const totalTime = finishedAt - job.created_at;
 
       await updateJob(jobId, {
         status: result.status,
         stdout: result.stdout,
         stderr: result.stderr,
         exit_code: result.exit_code,
-        finished_at: Date.now(),
+        finished_at: finishedAt,
+        metrics: {
+          queue_wait_ms: queueWaitTime,
+          compile_time_ms: compileTime,
+          exec_time_ms: execTime,
+          total_time_ms: totalTime,
+        },
       });
 
       // Record metrics
