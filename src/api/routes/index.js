@@ -3,6 +3,7 @@ import jobRoutes from "./job.routes.js";
 import monitoringRoutes from "./monitoring.routes.js";
 import authRoutes from "./auth.routes.js";
 import adminRoutes from "./admin.routes.js";
+import webhooksRoutes from "./webhooks.routes.js";
 
 /**
  * Configure all API routes
@@ -13,4 +14,5 @@ export function configureRoutes(app) {
   app.use(healthRoutes);
   app.use(jobRoutes);
   app.use(monitoringRoutes);
+  app.use(webhooksRoutes);
 }

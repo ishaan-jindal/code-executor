@@ -1,0 +1,90 @@
+/**
+ * Language Registry - Information about supported languages
+ */
+
+export const LANGUAGES = {
+  python: {
+    id: "python",
+    name: "Python",
+    version: "3.12",
+    description: "Python 3.12 with standard library",
+    aliases: ["py", "python3"],
+    compile_time_ms: 0,
+    memory_limit_mb: 64,
+    cpu_limit: 0.5,
+    timeout_ms: 2000,
+    features: {
+      stdin: true,
+      file_io: false,
+      networking: false,
+      subprocess: false,
+    },
+    example: `print("Hello, World!")`,
+  },
+  c: {
+    id: "c",
+    name: "C",
+    version: "GCC 13",
+    description: "C with GCC 13 compiler (-O2 optimization)",
+    aliases: ["gcc"],
+    compile_time_ms: 1000,
+    memory_limit_mb: 64,
+    cpu_limit: 0.5,
+    timeout_ms: 2000,
+    features: {
+      stdin: true,
+      file_io: false,
+      networking: false,
+      subprocess: false,
+    },
+    compiler_flags_default: "-O2",
+    compiler_flags_allowed: ["-O0", "-O1", "-O2", "-O3", "-Wall", "-Werror"],
+    example: `#include <stdio.h>
+int main() {
+  printf("Hello, World!\\n");
+  return 0;
+}`,
+  },
+};
+
+/**
+ * Get language by ID or alias
+ */
+export function getLanguage(lang) {
+  const normalizedLang = (lang || "").toLowerCase();
+  
+  // Direct match
+  if (LANGUAGES[normalizedLang]) {
+    return LANGUAGES[normalizedLang];
+  }
+  
+  // Check aliases
+  for (const [id, langInfo] of Object.entries(LANGUAGES)) {
+    if (langInfo.aliases && langInfo.aliases.includes(normalizedLang)) {
+      return langInfo;
+    }
+  }
+  
+  return null;
+}
+
+/**
+ * Get all supported languages
+ */
+export function getAllLanguages() {
+  return Object.values(LANGUAGES);
+}
+
+/**
+ * Validate language is supported
+ */
+export function isLanguageSupported(lang) {
+  return getLanguage(lang) !== null;
+}
+
+/**
+ * Get language by ID only (no aliases)
+ */
+export function getLanguageById(id) {
+  return LANGUAGES[id] || null;
+}

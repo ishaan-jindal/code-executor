@@ -4,6 +4,7 @@ import { JobStatus } from "../jobs/jobTypes.js";
 import runCode from "../runner/runCode.js";
 import { executionLimiter } from "../limits/executionLimiter.js";
 import { metrics } from "../../infrastructure/metrics/metricsCollector.js";
+import { onJobCompleted } from "../webhooks/webhookDispatcher.js";
 
 export async function startWorker(id) {
   console.log(`[WORKER ${id}] started`);
@@ -53,6 +54,17 @@ export async function startWorker(id) {
 
       // Record metrics
       metrics.recordCompletion(result.status, job.language, executionTime, queueWaitTime);
+
+      // Trigger webhooks for job completion
+      if (job.userId) {
+        const updatedJob = await getJob(jobId);
+        try {
+          await onJobCompleted(job.userId, updatedJob);
+        } catch (err) {
+          console.error(`[WORKER ${id}] webhook error for job ${jobId}:`, err.message);
+          // Don't fail the job if webhook fails
+        }
+      }
 
       consecutiveErrors = 0;
     } catch (err) {

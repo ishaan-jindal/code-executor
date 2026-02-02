@@ -1468,6 +1468,112 @@ curl --max-time 5 ...
 curl -I ...
 ```
 
+## Advanced Features
+
+### Code Retrieval
+
+Retrieve code from previously submitted jobs.
+
+#### Get Code from Job
+
+```
+GET /jobs/:id/code
+```
+
+**Authentication:** Required (JWT or API Key)
+
+**Parameters:**
+- `id` (path): Job ID
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "id": "job-uuid",
+    "language": "python",
+    "code": "print('Hello, World!')",
+    "stdin": "",
+    "created_at": 1706131200000
+  }
+}
+```
+
+### Job Search and History
+
+Search and filter your job history with multiple filters.
+
+#### List User Jobs
+
+```
+GET /jobs
+```
+
+**Authentication:** Required (JWT or API Key)
+
+**Query Parameters:**
+- `status` (optional): Filter by status
+- `language` (optional): Filter by language
+- `limit` (optional): Max results (default: 50, max: 100)
+- `offset` (optional): Pagination offset (default: 0)
+
+### Language Information
+
+Get information about supported languages.
+
+#### List All Languages
+
+```
+GET /languages
+```
+
+**Authentication:** Not required (public endpoint)
+
+#### Get Language Info
+
+```
+GET /languages/:lang
+```
+
+**Authentication:** Not required (public endpoint)
+
+### Webhooks
+
+Register webhooks to receive notifications when jobs complete.
+
+#### Register Webhook
+
+```
+POST /webhooks
+```
+
+**Authentication:** Required (JWT or API Key)
+
+**Body:**
+```json
+{
+  "url": "https://your-server.com/callback",
+  "events": ["job.completed"],
+  "secret": "optional-hmac-secret"
+}
+```
+
+#### List Webhooks
+
+```
+GET /webhooks
+```
+
+**Authentication:** Required
+
+#### Delete Webhook
+
+```
+DELETE /webhooks/:id
+```
+
+**Authentication:** Required
+
 ---
 
 **Last Updated:** February 1, 2026
