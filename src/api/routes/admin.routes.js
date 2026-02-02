@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticateJWT } from "../../middleware/authMiddleware.js";
 import { requireAdmin } from "../../middleware/adminMiddleware.js";
-import { getUserById, updateUser } from "../../core/auth/userStore.js";
+import { getUserById, updateUser, getAllUsers } from "../../core/auth/userStore.js";
 import { ApiError } from "../../utils/apiError.js";
 import { info, warn } from "../../infrastructure/logs/logger.js";
 
@@ -195,6 +195,35 @@ router.get("/stats", authenticateJWT, requireAdmin, async (req, res, next) => {
         message: "Admin stats endpoint placeholder",
         features: ["user_count", "tier_distribution", "rate_limit_usage"],
       },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * List All Users
+ * GET /admin/users
+ */
+router.get("/users", authenticateJWT, requireAdmin, async (req, res, next) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Max 100 per page
+    const offset = parseInt(req.query.offset) || 0;
+    const adminId = req.user.id;
+
+    const result = await getAllUsers(limit, offset);
+
+    info(`admin listed users`, {
+      adminId,
+      count: result.users.length,
+      total: result.total,
+      limit,
+      offset,
+    });
+
+    return res.json({
+      success: true,
+      data: result,
     });
   } catch (err) {
     next(err);

@@ -84,6 +84,51 @@ export async function updateUser(userId, updates) {
   return sanitizeUser(updated);
 }
 
+export async function getAllUsers(limit = 100, offset = 0) {
+  // Scan for all user keys (pattern: user:user_*)
+  const keys = [];
+  let cursor = "0";
+  
+  do {
+    const [newCursor, foundKeys] = await redis.scan(
+      cursor,
+      "MATCH",
+      "user:user_*",
+      "COUNT",
+      "100"
+    );
+    cursor = newCursor;
+    keys.push(...foundKeys);
+  } while (cursor !== "0");
+  
+  // Get all user data
+  const users = [];
+  for (const key of keys) {
+    const data = await redis.get(key);
+    if (data) {
+      try {
+        const user = JSON.parse(data);
+        users.push(sanitizeUser(user));
+      } catch (e) {
+        // Skip malformed entries
+      }
+    }
+  }
+  
+  // Sort by createdAt descending (newest first)
+  users.sort((a, b) => b.createdAt - a.createdAt);
+  
+  // Apply pagination
+  const paginated = users.slice(offset, offset + limit);
+  
+  return {
+    users: paginated,
+    total: users.length,
+    limit,
+    offset,
+  };
+}
+
 function getTierRateLimit(tier) {
   const limits = {
     free: 10,      // 10 requests per minute

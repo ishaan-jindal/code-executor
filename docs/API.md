@@ -505,7 +505,75 @@ curl -X GET http://localhost:4000/admin/users/user_12345 \
 
 ---
 
-### 7. Grant Admin Role
+### 7. List All Users
+
+**Endpoint:** `GET /admin/users`
+
+**Description:** List all registered users with pagination (admin only).
+
+**Request Headers:**
+```
+Authorization: Bearer <admin-access-token>
+```
+
+**Query Parameters:**
+- `limit` - Results per page (default: 50, max: 100)
+- `offset` - Number of results to skip (default: 0)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "users": [
+      {
+        "id": "user_1738339200000_abc123",
+        "username": "johndoe",
+        "email": "john@example.com",
+        "tier": "professional",
+        "rateLimit": 100,
+        "role": "user",
+        "createdAt": 1738339200000
+      },
+      {
+        "id": "user_1738340000000_def456",
+        "username": "alice",
+        "email": "alice@example.com",
+        "tier": "free",
+        "rateLimit": 10,
+        "role": "user",
+        "createdAt": 1738340000000
+      }
+    ],
+    "total": 42,
+    "limit": 50,
+    "offset": 0
+  }
+}
+```
+
+**Error Responses:**
+- `401` - Not authenticated
+- `403` - Not admin
+
+**cURL Examples:**
+```bash
+# Get first 50 users
+curl -X GET "http://localhost:4000/admin/users" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get next 50 users
+curl -X GET "http://localhost:4000/admin/users?limit=50&offset=50" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+
+# Get specific page size
+curl -X GET "http://localhost:4000/admin/users?limit=20&offset=0" \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 8. Grant Admin Role
 
 **Endpoint:** `POST /admin/users/:userId/make-admin`
 
@@ -545,7 +613,7 @@ curl -X POST http://localhost:4000/admin/users/user_12345/make-admin \
 
 ---
 
-### 8. Revoke Admin Role
+### 9. Revoke Admin Role
 
 **Endpoint:** `POST /admin/users/:userId/revoke-admin`
 
