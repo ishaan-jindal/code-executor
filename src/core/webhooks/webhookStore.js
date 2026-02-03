@@ -1,14 +1,14 @@
-import { promisify } from "util";
 import { redis } from "../../infrastructure/redis/redisClient.js";
 
-const redisGet = promisify(redis.get).bind(redis);
-const redisSet = promisify(redis.set).bind(redis);
-const redisDel = promisify(redis.del).bind(redis);
-const redisKeys = promisify(redis.keys).bind(redis);
-const redisHGetAll = promisify(redis.hgetall).bind(redis);
-const redisHSet = promisify(redis.hset).bind(redis);
-const redisHDel = promisify(redis.hdel).bind(redis);
-const redisScan = promisify(redis.scan).bind(redis);
+// ioredis methods already return Promises, no need to promisify
+const redisGet = redis.get.bind(redis);
+const redisSet = redis.set.bind(redis);
+const redisDel = redis.del.bind(redis);
+const redisKeys = redis.keys.bind(redis);
+const redisHGetAll = redis.hgetall.bind(redis);
+const redisHSet = redis.hset.bind(redis);
+const redisHDel = redis.hdel.bind(redis);
+const redisScan = redis.scan.bind(redis);
 
 export const WEBHOOK_STATUS = {
   ACTIVE: "active",

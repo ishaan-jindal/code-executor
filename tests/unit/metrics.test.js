@@ -8,39 +8,50 @@
 import http from "http";
 
 const BASE_URL = "http://localhost:4000";
+let accessToken = null;
 
-function makeRequest(method, path) {
+function makeRequest(method, path, body = null, includeAuth = false) {
   return new Promise((resolve, reject) => {
     const url = new URL(path, BASE_URL);
-    const req = http.request(
-      {
-        hostname: url.hostname,
-        port: url.port,
-        path: url.pathname,
-        method,
+    const options = {
+      hostname: url.hostname,
+      port: url.port,
+      path: url.pathname,
+      method,
+      headers: {
+        "Content-Type": "application/json",
       },
-      (res) => {
-        let data = "";
-        res.on("data", (chunk) => (data += chunk));
-        res.on("end", () => {
-          try {
-            if (res.headers["content-type"]?.includes("application/json")) {
-              resolve({ status: res.statusCode, body: JSON.parse(data), raw: data });
-            } else {
-              resolve({ status: res.statusCode, body: data, raw: data });
-            }
-          } catch (e) {
+    };
+
+    if (includeAuth && accessToken) {
+      options.headers["Authorization"] = `Bearer ${accessToken}`;
+    }
+
+    const req = http.request(options, (res) => {
+      let data = "";
+      res.on("data", (chunk) => (data += chunk));
+      res.on("end", () => {
+        try {
+          if (res.headers["content-type"]?.includes("application/json")) {
+            resolve({ status: res.statusCode, body: JSON.parse(data), raw: data });
+          } else {
             resolve({ status: res.statusCode, body: data, raw: data });
           }
-        });
-      }
-    );
+        } catch (e) {
+          resolve({ status: res.statusCode, body: data, raw: data });
+        }
+      });
+    });
 
     req.on("error", reject);
     req.setTimeout(5000, () => {
       req.destroy();
       reject(new Error("Request timeout"));
     });
+    
+    if (body) {
+      req.write(JSON.stringify(body));
+    }
     req.end();
   });
 }
@@ -49,6 +60,25 @@ async function testMetrics() {
   console.log("🧪 Testing Metrics & Monitoring System...\n");
 
   try {
+    // Setup authentication
+    console.log("✓ Test 0: Authentication Setup");
+    const testUsername = `testuser_${Date.now()}`;
+    const testEmail = `test_${Date.now()}@example.com`;
+    const testPassword = "TestPass123!";
+
+    const registerRes = await makeRequest("POST", "/auth/register", {
+      username: testUsername,
+      email: testEmail,
+      password: testPassword,
+    });
+
+    if (registerRes.status !== 201 || !registerRes.body.success) {
+      throw new Error(`Registration failed: ${registerRes.body.error || "Unknown error"}`);
+    }
+
+    accessToken = registerRes.body.data.accessToken;
+    console.log(`  Test user created: ${testUsername}\n`);
+
     // Test 1: Health endpoint
     console.log("✓ Test 1: Health Check");
     const health = await makeRequest("GET", "/health");
@@ -108,39 +138,14 @@ async function testMetrics() {
     const beforeSubmit = await makeRequest("GET", "/status");
     const beforeCount = beforeSubmit.body.jobs.submitted;
 
-    const submitBody = JSON.stringify({
+    const submitRes = await makeRequest("POST", "/submit", {
       language: "python",
       code: 'print("Metrics test")',
       stdin: "",
-    });
+    }, true);
 
-    const submitReq = await new Promise((resolve, reject) => {
-      const req = http.request(
-        {
-          hostname: "localhost",
-          port: 4000,
-          path: "/submit",
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Content-Length": Buffer.byteLength(submitBody),
-          },
-        },
-        (res) => {
-          let data = "";
-          res.on("data", (chunk) => (data += chunk));
-          res.on("end", () => {
-            resolve({ status: res.statusCode, body: JSON.parse(data) });
-          });
-        }
-      );
-      req.on("error", reject);
-      req.write(submitBody);
-      req.end();
-    });
-
-    if (submitReq.status !== 201) {
-      throw new Error(`Job submission failed with status ${submitReq.status}`);
+    if (submitRes.status !== 201) {
+      throw new Error(`Job submission failed with status ${submitRes.status}`);
     }
 
     // Wait a moment for metrics to update
@@ -159,13 +164,13 @@ async function testMetrics() {
 
     // Test 5: Wait for job completion and check completion metrics
     console.log("✓ Test 5: Metrics Update on Job Completion");
-    const jobId = submitReq.body.job_id;
+    const jobId = submitRes.body.job_id;
 
     // Poll for completion
     let completed = false;
     for (let i = 0; i < 50; i++) {
       await new Promise((r) => setTimeout(r, 200));
-      const result = await makeRequest("GET", `/result/${jobId}`);
+      const result = await makeRequest("GET", `/result/${jobId}`, null, true);
       if (result.body.status !== "QUEUED" && result.body.status !== "RUNNING") {
         completed = true;
         break;

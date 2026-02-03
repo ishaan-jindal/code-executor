@@ -16,12 +16,26 @@ Secure, isolated code execution service with JWT authentication, user-based rate
 ### Admin (Requires Admin Role)
 - **POST /admin/users/:userId/upgrade** - Upgrade user tier
 - **GET /admin/users/:userId** - View user details
+- **GET /admin/users** - List all users (paginated)
 - **POST /admin/users/:userId/make-admin** - Grant admin role
 - **POST /admin/users/:userId/revoke-admin** - Revoke admin role
 
 ### Core Execution (Requires Authentication)
 - **POST /submit** - Submit code for execution (rate limited by tier)
 - **GET /result/:id** - Poll job result (only your jobs)
+
+### Advanced Features (Requires Authentication)
+- **GET /jobs/:id/code** - Retrieve code from previous submission
+- **GET /jobs** - Search job history with filters
+- **GET /languages** - List all supported languages (public)
+- **GET /languages/:lang** - Get language details (public)
+
+### Webhooks (Requires Authentication)
+- **POST /webhooks** - Register webhook callback
+- **GET /webhooks** - List your webhooks
+- **GET /webhooks/:id** - Get webhook details
+- **GET /webhooks/:id/deliveries** - View delivery history
+- **DELETE /webhooks/:id** - Delete webhook
 
 ### Monitoring & Diagnostics  
 - **GET /health** - Health check with Redis connectivity
@@ -51,11 +65,31 @@ npm run dev
 npm run seed
 
 # 6. Test authentication
-npm run test:auth
+npm run test:integration:auth
 
-# 7. Run integration tests
-npm run test
+# 7. Run all tests
+npm test
 ```
+
+## Testing
+
+```bash
+# Run all tests (unit + integration)
+npm test
+
+# Run only unit tests
+npm run test:unit
+
+# Run only integration tests
+npm run test:integration
+
+# Run specific test suites
+npm run test:unit:webhooks
+npm run test:unit:apikey
+npm run test:integration:advanced
+```
+
+See [docs/TESTING.md](docs/TESTING.md) for complete testing guide.
 
 ## Authentication & Usage
 
@@ -183,14 +217,18 @@ tests/                   # Test suites
 - **[docs/API.md](docs/API.md)** - Complete API documentation with examples
 - **[docs/MONITORING.md](docs/MONITORING.md)** - Metrics, dashboards, alerting
 - **[docs/DOCKER.md](docs/DOCKER.md)** - Docker images and security
-- **[docs/TESTING.md](docs/TESTING.md)** - Testing procedures
+- **[docs/TESTING.md](docs/TESTING.md)** - Testing guide and procedures
+- **[docs/ADMIN.md](docs/ADMIN.md)** - Admin features and user management
+- **[docs/ADVANCED_FEATURES.md](docs/ADVANCED_FEATURES.md)** - Webhooks, code retrieval, job search
 
 ## Features
 
 ✅ **Authentication & Authorization**
   - JWT-based authentication (access + refresh tokens)
+  - API key support for programmatic access
   - User registration and login
   - Bcrypt password hashing
+  - Role-based access control (user/admin)
   - User-based rate limiting by tier
 
 ✅ **Security**
@@ -198,12 +236,21 @@ tests/                   # Test suites
   - Resource limits (64MB memory, 0.5 CPU)
   - Seccomp filtering
   - User isolation (users can only access their own jobs)
+  - HMAC-signed webhook deliveries
 
 ✅ **Code Execution**
   - Python 3.12 and C (GCC 13) support
   - stdin/stdout/stderr capture
   - Timeout protection (2s default)
   - Queue-based job distribution
+  - Execution metrics (compile time, run time, queue wait)
+
+✅ **Advanced Features**
+  - Code retrieval from past submissions
+  - Job search and filtering
+  - Language metadata API
+  - Webhook callbacks on job completion
+  - Automatic webhook retry with exponential backoff
 
 ✅ **Monitoring & Observability**
   - Comprehensive metrics collection
@@ -216,5 +263,5 @@ tests/                   # Test suites
   - Redis-backed persistence
   - Graceful shutdown
   - Rate limiting with sliding window
-  - Integration tests
+  - Comprehensive test suite (unit + integration)
   - Load testing with k6

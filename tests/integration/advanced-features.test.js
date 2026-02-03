@@ -9,12 +9,7 @@ import https from "https";
 import http from "http";
 
 const BASE_URL = "http://localhost:4000";
-const API_KEY = process.argv[2]; // Pass API key as argument
-
-if (!API_KEY) {
-  console.error("Usage: node test-advanced-features.js <api_key>");
-  process.exit(1);
-}
+let API_KEY = process.argv[2]; // Pass API key as argument
 
 // Helper to make HTTP requests
 function request(method, path, body = null, headers = {}) {
@@ -27,7 +22,7 @@ function request(method, path, body = null, headers = {}) {
       method,
       headers: {
         "Content-Type": "application/json",
-        "X-API-Key": API_KEY,
+        ...(API_KEY ? { "X-API-Key": API_KEY } : {}),
         ...headers,
       },
     };
@@ -64,6 +59,43 @@ async function test() {
   console.log("🧪 Testing Advanced Features\n");
 
   try {
+    // Setup authentication if no API key provided
+    if (!API_KEY) {
+      console.log("0️⃣  Setting up authentication...");
+      const testUsername = `testuser_${Date.now()}`;
+      const testEmail = `test_${Date.now()}@example.com`;
+      const testPassword = "TestPass123!";
+
+      // Register
+      const registerRes = await request("POST", "/auth/register", {
+        username: testUsername,
+        email: testEmail,
+        password: testPassword,
+      });
+
+      if (registerRes.status !== 201 || !registerRes.body.success) {
+        throw new Error(`Registration failed: ${registerRes.body.error || "Unknown error"}`);
+      }
+
+      const accessToken = registerRes.body.data.accessToken;
+
+      // Generate API key
+      const apiKeyRes = await request(
+        "POST",
+        "/auth/api-keys",
+        { name: "Test API Key" },
+        { Authorization: `Bearer ${accessToken}` }
+      );
+
+      if (apiKeyRes.status !== 201 || !apiKeyRes.body.success) {
+        throw new Error(`API key generation failed: ${apiKeyRes.body.error || "Unknown error"}`);
+      }
+
+      API_KEY = apiKeyRes.body.data.key;
+      console.log(`   Test user created: ${testUsername}`);
+      console.log(`   API key generated\n`);
+    }
+
     // Test 1: Get Language Info
     console.log("1️⃣  Getting all languages...");
     const langRes = await request("GET", "/languages");
@@ -83,7 +115,7 @@ async function test() {
       language: "python",
       code: 'print("Hello from test")',
     });
-    const jobId = submitRes.body?.data?.id || submitRes.body?.job_id;
+    const jobId = submitRes.body?.data?.job_id;
     if (!jobId) {
       throw new Error("Submit response missing job id");
     }

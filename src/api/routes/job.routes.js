@@ -69,7 +69,9 @@ router.post("/submit", authenticateJWT, rateLimitByUser(), async (req, res, next
     metrics.recordSubmission(language);
 
     return res.status(201).json(
-      ApiResponse.jobResponse({ id: jobId, status: JobStatus.QUEUED })
+      ApiResponse.success(
+        ApiResponse.jobResponse({ id: jobId, status: JobStatus.QUEUED })
+      )
     );
   } catch (err) {
     next(err);
@@ -104,7 +106,11 @@ router.get("/result/:id", authenticateJWT, checkRateLimit(), async (req, res, ne
     const includeOutput =
       job.status !== JobStatus.QUEUED && job.status !== JobStatus.RUNNING;
 
-    return res.json(ApiResponse.jobResponse(job, includeOutput));
+    return res.json(
+      ApiResponse.success(
+        ApiResponse.jobResponse(job, includeOutput)
+      )
+    );
   } catch (err) {
     next(err);
   }

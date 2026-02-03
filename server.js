@@ -1,6 +1,7 @@
 import "dotenv/config";
 import express from "express";
 import bodyParser from "body-parser";
+import cors from "cors";
 
 import { requestLogger } from "./src/infrastructure/logs/requestLogger.js";
 import { info } from "./src/infrastructure/logs/logger.js";
@@ -11,6 +12,7 @@ import { startWorker } from "./src/core/workers/executorWorker.js";
 const app = express();
 
 // Middleware
+app.use(cors());
 app.use(requestLogger);
 app.use(bodyParser.json({ limit: "100kb" }));
 

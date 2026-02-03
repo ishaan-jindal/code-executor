@@ -721,7 +721,7 @@ X-API-Key: sk_live_abc123...
 {
   "success": true,
   "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
     "status": "QUEUED"
   }
 }
@@ -817,7 +817,7 @@ X-API-Key: sk_live_abc123...
 {
   "success": true,
   "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
     "status": "RUNNING"
   }
 }
@@ -828,7 +828,7 @@ X-API-Key: sk_live_abc123...
 {
   "success": true,
   "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
     "status": "ACCEPTED",
     "metrics": {
       "queue_wait_ms": 12,
@@ -848,7 +848,7 @@ X-API-Key: sk_live_abc123...
 {
   "success": true,
   "data": {
-    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
     "status": "RUNTIME_ERROR",
     "metrics": {
       "queue_wait_ms": 10,
@@ -1034,7 +1034,7 @@ curl -X POST http://localhost:4000/submit \
 {
   "success": true,
   "data": {
-    "id": "abc123",
+    "job_id": "abc123",
     "status": "QUEUED"
   }
 }
@@ -1050,7 +1050,7 @@ curl http://localhost:4000/result/abc123
 {
   "success": true,
   "data": {
-    "id": "abc123",
+    "job_id": "abc123",
     "status": "RUNNING"
   }
 }
@@ -1061,7 +1061,7 @@ curl http://localhost:4000/result/abc123
 {
   "success": true,
   "data": {
-    "id": "abc123",
+    "job_id": "abc123",
     "status": "ACCEPTED",
     "stdout": "Line 1: first\nLine 2: second\nLine 3: third\n",
     "stderr": "",

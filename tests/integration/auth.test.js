@@ -139,7 +139,8 @@ async function testAuth() {
         log(`  Rate Limit: ${submitRes.headers["x-ratelimit-remaining"]}/${submitRes.headers["x-ratelimit-limit"]} remaining`);
       }
     } else {
-      log(`✗ Submit failed: ${submitRes.data.error}`, "red");
+      log(`✗ Submit failed: ${submitRes.data.error || JSON.stringify(submitRes.data)}`, "red");
+      log(`  Status code: ${submitRes.status}`, "red");
     }
 
     // Test 5: Get result with auth
@@ -155,9 +156,9 @@ async function testAuth() {
 
       if (resultRes.status === 200 && resultRes.data.success) {
         log("✓ Result retrieved successfully", "green");
-        log(`  Status: ${resultRes.data.data.job.status}`);
-        if (resultRes.data.data.job.stdout) {
-          log(`  Output: ${resultRes.data.data.job.stdout.trim()}`);
+        log(`  Status: ${resultRes.data.data.status}`);
+        if (resultRes.data.data.stdout) {
+          log(`  Output: ${resultRes.data.data.stdout.trim()}`);
         }
       } else {
         log(`✗ Get result failed: ${resultRes.data.error}`, "red");

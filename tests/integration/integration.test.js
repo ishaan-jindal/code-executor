@@ -105,17 +105,17 @@ async function runTests() {
     if (submitRes.status !== 201) {
       throw new Error(`Expected 201, got ${submitRes.status}`);
     }
-    const jobId = submitRes.body.job_id;
+    const jobId = submitRes.body.data.job_id;
     console.log(`  Job ID: ${jobId}\n`);
 
     // Test 3: Poll job status (should be queued or running)
     console.log("✓ Test 3: Poll Job Status (Queued/Running)");
     const statusRes = await makeRequest("GET", `/result/${jobId}`, null, true);
     const validStates = [JobStatus.QUEUED, JobStatus.RUNNING];
-    if (!validStates.includes(statusRes.body.status)) {
-      console.log(`  Warning: Got unexpected status ${statusRes.body.status}`);
+    if (!validStates.includes(statusRes.body.data.status)) {
+      console.log(`  Warning: Got unexpected status ${statusRes.body.data.status}`);
     } else {
-      console.log(`  Status: ${statusRes.body.status}\n`);
+      console.log(`  Status: ${statusRes.body.data.status}\n`);
     }
 
     // Test 4: Wait for execution and poll result
@@ -124,8 +124,8 @@ async function runTests() {
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
       const res = await makeRequest("GET", `/result/${jobId}`, null, true);
-      if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
-        result = res.body;
+      if (res.body.data.status !== JobStatus.QUEUED && res.body.data.status !== JobStatus.RUNNING) {
+        result = res.body.data;
         break;
       }
     }
@@ -185,7 +185,7 @@ async function runTests() {
     if (cSubmit.status !== 201) {
       throw new Error(`Expected 201, got ${cSubmit.status}`);
     }
-    const cJobId = cSubmit.body.job_id;
+    const cJobId = cSubmit.body.data.job_id;
     console.log(`  C Job ID: ${cJobId}\n`);
 
     // Test 6: Wait for C execution
@@ -194,8 +194,8 @@ async function runTests() {
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
       const res = await makeRequest("GET", `/result/${cJobId}`, null, true);
-      if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
-        cResult = res.body;
+      if (res.body.data.status !== JobStatus.QUEUED && res.body.data.status !== JobStatus.RUNNING) {
+        cResult = res.body.data;
         break;
       }
     }
@@ -245,14 +245,14 @@ async function runTests() {
       language: "python",
       code: "1 / 0",
     }, true);
-    const errorJobId = errorRes.body.job_id;
+    const errorJobId = errorRes.body.data.job_id;
 
     let errorResult = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
       const res = await makeRequest("GET", `/result/${errorJobId}`, null, true);
-      if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
-        errorResult = res.body;
+      if (res.body.data.status !== JobStatus.QUEUED && res.body.data.status !== JobStatus.RUNNING) {
+        errorResult = res.body.data;
         break;
       }
     }
@@ -273,14 +273,14 @@ async function runTests() {
     if (stdinRes.status !== 201) {
       throw new Error(`Expected 201, got ${stdinRes.status}`);
     }
-    const stdinJobId = stdinRes.body.job_id;
+    const stdinJobId = stdinRes.body.data.job_id;
 
     let stdinResult = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
       const res = await makeRequest("GET", `/result/${stdinJobId}`, null, true);
-      if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
-        stdinResult = res.body;
+      if (res.body.data.status !== JobStatus.QUEUED && res.body.data.status !== JobStatus.RUNNING) {
+        stdinResult = res.body.data;
         break;
       }
     }
@@ -316,14 +316,14 @@ async function runTests() {
     if (cStdinRes.status !== 201) {
       throw new Error(`Expected 201, got ${cStdinRes.status}`);
     }
-    const cStdinJobId = cStdinRes.body.job_id;
+    const cStdinJobId = cStdinRes.body.data.job_id;
 
     let cStdinResult = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
       const res = await makeRequest("GET", `/result/${cStdinJobId}`, null, true);
-      if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
-        cStdinResult = res.body;
+      if (res.body.data.status !== JobStatus.QUEUED && res.body.data.status !== JobStatus.RUNNING) {
+        cStdinResult = res.body.data;
         break;
       }
     }
@@ -350,14 +350,14 @@ async function runTests() {
     if (multiRes.status !== 201) {
       throw new Error(`Expected 201, got ${multiRes.status}`);
     }
-    const multiJobId = multiRes.body.job_id;
+    const multiJobId = multiRes.body.data.job_id;
 
     let multiResult = null;
     for (let i = 0; i < 75; i++) {
       await new Promise((r) => setTimeout(r, 200));
       const res = await makeRequest("GET", `/result/${multiJobId}`, null, true);
-      if (res.body.status !== JobStatus.QUEUED && res.body.status !== JobStatus.RUNNING) {
-        multiResult = res.body;
+      if (res.body.data.status !== JobStatus.QUEUED && res.body.data.status !== JobStatus.RUNNING) {
+        multiResult = res.body.data;
         break;
       }
     }

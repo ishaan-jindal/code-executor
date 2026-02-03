@@ -83,8 +83,9 @@ export function isLanguageSupported(lang) {
 }
 
 /**
- * Get language by ID only (no aliases)
+ * Get language by ID or alias
+ * Alias for getLanguage() for compatibility
  */
-export function getLanguageById(id) {
-  return LANGUAGES[id] || null;
+export function getLanguageById(lang) {
+  return getLanguage(lang);
 }
