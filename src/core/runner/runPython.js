@@ -1,9 +1,6 @@
 import { spawn, spawnSync } from "child_process";
-import path from "path";
 import { JobStatus } from "../jobs/jobTypes.js";
 import { truncateOutput, MAX_OUTPUT_SIZE } from "../../utils/outputHandler.js";
-
-const SECCOMP = path.resolve("./config/seccomp-runtime.json");
 
 export function runPython(dir, stdin) {
   const containerId = `runner-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -29,8 +26,6 @@ export function runPython(dir, stdin) {
     "--network=none",
     "--cap-drop=ALL",
     "--security-opt=no-new-privileges",
-    "--security-opt",
-    `seccomp=${SECCOMP}`,
     "--read-only",
     "--tmpfs",
     "/tmp:rw,nosuid,noexec,size=16m",
