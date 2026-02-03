@@ -12,7 +12,15 @@ import { startWorker } from "./src/core/workers/executorWorker.js";
 const app = express();
 
 // Middleware
-app.use(cors());
+// CORS: Allow any origin for authenticated requests
+// Security is via API Key / JWT authentication, not origin restriction
+const corsOptions = {
+  origin: true, // Reflect request origin (allows all)
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-API-Key"],
+  credentials: true,
+};
+app.use(cors(corsOptions));
 app.use(requestLogger);
 app.use(bodyParser.json({ limit: "100kb" }));
 
