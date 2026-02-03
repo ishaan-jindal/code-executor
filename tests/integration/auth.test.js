@@ -157,8 +157,9 @@ async function testAuth() {
       if (resultRes.status === 200 && resultRes.data.success) {
         log("✓ Result retrieved successfully", "green");
         log(`  Status: ${resultRes.data.data.status}`);
-        if (resultRes.data.data.stdout) {
-          log(`  Output: ${resultRes.data.data.stdout.trim()}`);
+        const firstResult = resultRes.data.data.results?.[0];
+        if (firstResult?.stdout) {
+          log(`  Output: ${firstResult.stdout.trim()}`);
         }
       } else {
         log(`✗ Get result failed: ${resultRes.data.error}`, "red");

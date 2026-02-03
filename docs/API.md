@@ -738,7 +738,7 @@ X-API-Key: sk_live_abc123...
 {
   "language": "python",
   "code": "print('Hello, World!')",
-  "stdin": "optional input"
+  "inputs": ["input 1", "input 2"]
 }
 ```
 
@@ -748,7 +748,7 @@ X-API-Key: sk_live_abc123...
 |-----------|------|----------|-------------|
 | `language` | string | Yes | Programming language (`python`, `c`) |
 | `code` | string | Yes | Source code to execute (max 100KB) |
-| `stdin` | string | No | Standard input for the program |
+| `inputs` | array | No | Array of stdin values for repeated runs (max 50). If omitted, defaults to a single empty input. |
 
 **Response (201 Created):**
 ```json
@@ -772,7 +772,8 @@ curl -X POST http://localhost:4000/submit \
   -H "Authorization: Bearer YOUR_ACCESS_TOKEN" \
   -d '{
     "language": "python",
-    "code": "print(\"Hello, World!\")"
+    "code": "print(\"Hello, World!\")",
+    "inputs": [""]
   }'
 ```
 
@@ -784,7 +785,7 @@ curl -X POST http://localhost:4000/submit \
   -d '{
     "language": "python",
     "code": "name = input(\"Enter your name: \")\nprint(f\"Hello, {name}!\")",
-    "stdin": "Alice"
+    "inputs": ["Alice"]
   }'
 ```
 
@@ -796,7 +797,7 @@ curl -X POST http://localhost:4000/submit \
   -d '{
     "language": "c",
     "code": "#include <stdio.h>\nint main() {\n  int x;\n  scanf(\"%d\", &x);\n  printf(\"%d squared = %d\\\\n\", x, x*x);\n  return 0;\n}",
-    "stdin": "5"
+    "inputs": ["7"]
   }'
 ```
 
@@ -846,6 +847,8 @@ X-API-Key: sk_live_abc123...
 
 **Response:**
 
+**Note:** When a job completes, output is always returned as a `results` array. For single-input jobs, `results` will contain exactly one item.
+
 **While executing (QUEUED or RUNNING):**
 ```json
 {
@@ -870,9 +873,48 @@ X-API-Key: sk_live_abc123...
       "exec_time_ms": 34,
       "total_time_ms": 58
     },
-    "stdout": "Hello, World!\n",
-    "stderr": "",
-    "exit_code": 0
+    "results": [
+      {
+        "stdin": "",
+        "status": "ACCEPTED",
+        "stdout": "Hello, World!\n",
+        "stderr": "",
+        "exit_code": 0
+      }
+    ]
+  }
+}
+```
+
+**After completion (multiple inputs):**
+```json
+{
+  "success": true,
+  "data": {
+    "job_id": "550e8400-e29b-41d4-a716-446655440000",
+    "status": "ACCEPTED",
+    "metrics": {
+      "queue_wait_ms": 12,
+      "compile_time_ms": 0,
+      "exec_time_ms": 120,
+      "total_time_ms": 160
+    },
+    "results": [
+      {
+        "stdin": "input 1",
+        "status": "ACCEPTED",
+        "stdout": "Output 1\n",
+        "stderr": "",
+        "exit_code": 0
+      },
+      {
+        "stdin": "input 2",
+        "status": "ACCEPTED",
+        "stdout": "Output 2\n",
+        "stderr": "",
+        "exit_code": 0
+      }
+    ]
   }
 }
 ```
@@ -890,9 +932,15 @@ X-API-Key: sk_live_abc123...
       "exec_time_ms": 21,
       "total_time_ms": 40
     },
-    "stdout": "",
-    "stderr": "Traceback (most recent call last):\n  File \"main.py\", line 1, in <module>\n    1/0\nZeroDivisionError: division by zero\n",
-    "exit_code": 1
+    "results": [
+      {
+        "stdin": "",
+        "status": "RUNTIME_ERROR",
+        "stdout": "",
+        "stderr": "Traceback (most recent call last):\n  File \"main.py\", line 1, in <module>\n    1/0\nZeroDivisionError: division by zero\n",
+        "exit_code": 1
+      }
+    ]
   }
 }
 ```
@@ -1097,9 +1145,15 @@ curl http://localhost:4000/result/abc123
   "data": {
     "job_id": "abc123",
     "status": "ACCEPTED",
-    "stdout": "Line 1: first\nLine 2: second\nLine 3: third\n",
-    "stderr": "",
-    "exit_code": 0
+    "results": [
+      {
+        "stdin": "first\nsecond\nthird",
+        "status": "ACCEPTED",
+        "stdout": "Line 1: first\nLine 2: second\nLine 3: third\n",
+        "stderr": "",
+        "exit_code": 0
+      }
+    ]
   }
 }
 ```

@@ -21,7 +21,7 @@ const router = express.Router();
  */
 router.post("/submit", authenticateJWT, rateLimitByUser(), async (req, res, next) => {
   try {
-    const { language, code, stdin, callback_url } = req.body;
+    const { language, code, stdin, inputs, callback_url } = req.body;
     const reqId = req.requestId;
     const userId = req.user.id;
 
@@ -31,6 +31,33 @@ router.post("/submit", authenticateJWT, rateLimitByUser(), async (req, res, next
 
     if (stdin !== undefined && typeof stdin !== "string") {
       throw new ApiError(400, "stdin must be a string");
+    }
+
+    if (inputs !== undefined && !Array.isArray(inputs)) {
+      throw new ApiError(400, "inputs must be an array of strings");
+    }
+
+    if (stdin !== undefined && inputs !== undefined) {
+      throw new ApiError(400, "Provide either stdin or inputs, not both");
+    }
+
+    const normalizedInputs = inputs !== undefined
+      ? inputs
+      : (stdin !== undefined ? [stdin] : [""]);
+
+    if (normalizedInputs.length === 0) {
+      throw new ApiError(400, "inputs must contain at least one item");
+    }
+    if (normalizedInputs.length > 50) {
+      throw new ApiError(400, "inputs array too large (max 50)");
+    }
+    for (const input of normalizedInputs) {
+      if (typeof input !== "string") {
+        throw new ApiError(400, "inputs must be an array of strings");
+      }
+      if (input.length > 100_000) {
+        throw new ApiError(413, "input too large");
+      }
     }
 
     if (callback_url !== undefined && typeof callback_url !== "string") {
@@ -55,7 +82,8 @@ router.post("/submit", authenticateJWT, rateLimitByUser(), async (req, res, next
       userId,
       language,
       code,
-      stdin: stdin ?? "",
+      stdin: "",
+      inputs: normalizedInputs,
       callback_url: callback_url ?? null,
       status: JobStatus.QUEUED,
       created_at: Date.now(),

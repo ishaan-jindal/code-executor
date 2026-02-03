@@ -62,6 +62,10 @@ function makeRequest(method, path, body = null, includeAuth = false) {
   });
 }
 
+function getPrimaryResult(result) {
+  return result?.results?.[0] || null;
+}
+
 // Tests
 async function runTests() {
   console.log("🧪 Starting integration tests...\n");
@@ -100,7 +104,7 @@ async function runTests() {
     const submitRes = await makeRequest("POST", "/submit", {
       language: "python",
       code: 'print("Hello, World!")',
-      stdin: "",
+      inputs: [""],
     }, true);
     if (submitRes.status !== 201) {
       throw new Error(`Expected 201, got ${submitRes.status}`);
@@ -135,9 +139,10 @@ async function runTests() {
     }
 
     // Check if it's a gVisor/Docker error
+    const primaryResult = getPrimaryResult(result);
     if (
       result.status === JobStatus.RUNTIME_ERROR &&
-      result.stderr.includes("cannot create sandbox")
+      primaryResult?.stderr?.includes("cannot create sandbox")
     ) {
       console.log(
         "⚠️  gVisor (runsc) is not properly installed.\n"
@@ -158,15 +163,15 @@ async function runTests() {
 
     if (result.status !== JobStatus.ACCEPTED) {
       console.log(`  Status: ${result.status}`);
-      console.log(`  Stderr: ${result.stderr}\n`);
+      console.log(`  Stderr: ${primaryResult?.stderr || ""}\n`);
       throw new Error(`Job failed with status: ${result.status}`);
     }
 
-    if (!result.stdout.includes("Hello, World!")) {
-      throw new Error(`Expected output not found: ${result.stdout}`);
+    if (!primaryResult?.stdout?.includes("Hello, World!")) {
+      throw new Error(`Expected output not found: ${primaryResult?.stdout || ""}`);
     }
     console.log(`  Status: ${result.status}`);
-    console.log(`  Output: ${result.stdout.trim()}\n`);
+    console.log(`  Output: ${(primaryResult?.stdout || "").trim()}\n`);
 
     // Test 5: Submit C code
     console.log("✓ Test 5: Submit C Code");
@@ -179,7 +184,7 @@ async function runTests() {
           return 0;
         }
       `,
-      stdin: "",
+      inputs: [""],
     }, true);
 
     if (cSubmit.status !== 201) {
@@ -204,11 +209,12 @@ async function runTests() {
       throw new Error("C job did not complete in time");
     }
 
+    const cPrimary = getPrimaryResult(cResult);
     if (cResult.status !== JobStatus.ACCEPTED) {
-      throw new Error(`C job failed: ${cResult.status}\nStderr: ${cResult.stderr}`);
+      throw new Error(`C job failed: ${cResult.status}\nStderr: ${cPrimary?.stderr || ""}`);
     }
     console.log(`  Status: ${cResult.status}`);
-    console.log(`  Output: ${cResult.stdout.trim()}\n`);
+    console.log(`  Output: ${(cPrimary?.stdout || "").trim()}\n`);
 
     // Test 7: Invalid Job ID
     console.log("✓ Test 7: Invalid Job ID");
@@ -261,14 +267,15 @@ async function runTests() {
       throw new Error(`Expected RUNTIME_ERROR, got ${errorResult.status}`);
     }
     console.log(`  Status: ${errorResult.status}`);
-    console.log(`  Error: ${errorResult.stderr.split("\n")[0]}\n`);
+    const errorPrimary = getPrimaryResult(errorResult);
+    console.log(`  Error: ${(errorPrimary?.stderr || "").split("\n")[0]}\n`);
 
     // Test 11: Python with stdin
     console.log("✓ Test 11: Python with stdin");
     const stdinRes = await makeRequest("POST", "/submit", {
       language: "python",
       code: 'name = input("Enter name: ")\nprint(f"Hello, {name}!")',
-      stdin: "Alice",
+      inputs: ["Alice"],
     }, true);
     if (stdinRes.status !== 201) {
       throw new Error(`Expected 201, got ${stdinRes.status}`);
@@ -288,14 +295,15 @@ async function runTests() {
     if (!stdinResult) {
       throw new Error("stdin job did not complete in time");
     }
+    const stdinPrimary = getPrimaryResult(stdinResult);
     if (stdinResult.status !== JobStatus.ACCEPTED) {
-      throw new Error(`stdin job failed: ${stdinResult.status}\nStderr: ${stdinResult.stderr}`);
+      throw new Error(`stdin job failed: ${stdinResult.status}\nStderr: ${stdinPrimary?.stderr || ""}`);
     }
-    if (!stdinResult.stdout.includes("Alice")) {
-      throw new Error(`Expected stdin in output: ${stdinResult.stdout}`);
+    if (!stdinPrimary?.stdout?.includes("Alice")) {
+      throw new Error(`Expected stdin in output: ${stdinPrimary?.stdout || ""}`);
     }
     console.log(`  Status: ${stdinResult.status}`);
-    console.log(`  Output: ${stdinResult.stdout.trim()}\n`);
+    console.log(`  Output: ${(stdinPrimary?.stdout || "").trim()}\n`);
 
     // Test 12: C with stdin
     console.log("✓ Test 12: C with stdin");
@@ -311,7 +319,7 @@ async function runTests() {
           return 0;
         }
       `,
-      stdin: "7",
+      inputs: ["7"],
     }, true);
     if (cStdinRes.status !== 201) {
       throw new Error(`Expected 201, got ${cStdinRes.status}`);
@@ -331,21 +339,22 @@ async function runTests() {
     if (!cStdinResult) {
       throw new Error("C stdin job did not complete in time");
     }
+    const cStdinPrimary = getPrimaryResult(cStdinResult);
     if (cStdinResult.status !== JobStatus.ACCEPTED) {
-      throw new Error(`C stdin job failed: ${cStdinResult.status}\nStderr: ${cStdinResult.stderr}`);
+      throw new Error(`C stdin job failed: ${cStdinResult.status}\nStderr: ${cStdinPrimary?.stderr || ""}`);
     }
-    if (!cStdinResult.stdout.includes("7") || !cStdinResult.stdout.includes("49")) {
-      throw new Error(`Expected stdin and calculation in output: ${cStdinResult.stdout}`);
+    if (!cStdinPrimary?.stdout?.includes("7") || !cStdinPrimary?.stdout?.includes("49")) {
+      throw new Error(`Expected stdin and calculation in output: ${cStdinPrimary?.stdout || ""}`);
     }
     console.log(`  Status: ${cStdinResult.status}`);
-    console.log(`  Output: ${cStdinResult.stdout.trim()}\n`);
+    console.log(`  Output: ${(cStdinPrimary?.stdout || "").trim()}\n`);
 
     // Test 13: Multi-line stdin
     console.log("✓ Test 13: Multi-line stdin");
     const multiRes = await makeRequest("POST", "/submit", {
       language: "python",
       code: "lines = []\nfor _ in range(3):\n  lines.append(input())\nfor i, line in enumerate(lines, 1):\n  print(f'{i}: {line}')",
-      stdin: "first\nsecond\nthird",
+      inputs: ["first\nsecond\nthird"],
     }, true);
     if (multiRes.status !== 201) {
       throw new Error(`Expected 201, got ${multiRes.status}`);
@@ -365,14 +374,15 @@ async function runTests() {
     if (!multiResult) {
       throw new Error("multi-line stdin job did not complete in time");
     }
+    const multiPrimary = getPrimaryResult(multiResult);
     if (multiResult.status !== JobStatus.ACCEPTED) {
-      throw new Error(`multi-line stdin job failed: ${multiResult.status}\nStderr: ${multiResult.stderr}`);
+      throw new Error(`multi-line stdin job failed: ${multiResult.status}\nStderr: ${multiPrimary?.stderr || ""}`);
     }
-    if (!multiResult.stdout.includes("1: first") || !multiResult.stdout.includes("3: third")) {
-      throw new Error(`Expected multi-line stdin in output: ${multiResult.stdout}`);
+    if (!multiPrimary?.stdout?.includes("1: first") || !multiPrimary?.stdout?.includes("3: third")) {
+      throw new Error(`Expected multi-line stdin in output: ${multiPrimary?.stdout || ""}`);
     }
     console.log(`  Status: ${multiResult.status}`);
-    console.log(`  Output: ${multiResult.stdout.trim()}\n`);
+    console.log(`  Output: ${(multiPrimary?.stdout || "").trim()}\n`);
 
     // Test 14: Unauthenticated request (should fail)
     console.log("✓ Test 14: Unauthenticated Request (Should Fail)");

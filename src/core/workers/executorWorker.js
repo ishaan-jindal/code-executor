@@ -43,6 +43,7 @@ export async function startWorker(id) {
         stdout: result.stdout,
         stderr: result.stderr,
         exit_code: result.exit_code,
+        results: result.results,
         finished_at: finishedAt,
         metrics: {
           queue_wait_ms: queueWaitTime,

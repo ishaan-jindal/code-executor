@@ -9,6 +9,8 @@ import { runPython } from "./runPython.js";
 
 export default async function runCode(job) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-"));
+  const hasMultipleInputs = Array.isArray(job.inputs) && job.inputs.length > 0;
+  const inputs = hasMultipleInputs ? job.inputs : [job.stdin];
 
   try {
     if (job.language === "c") {
@@ -32,29 +34,82 @@ export default async function runCode(job) {
       }
 
       const compileTime = Date.now() - compileStart;
-      const execStart = Date.now();
-      const execResult = await runBinary(dir, job.stdin);
-      const execTime = Date.now() - execStart;
+      const results = [];
+      let execTimeTotal = 0;
+
+      for (const input of inputs) {
+        const execStart = Date.now();
+        const execResult = await runBinary(dir, input);
+        const execTime = Date.now() - execStart;
+        execTimeTotal += execTime;
+        results.push({
+          stdin: input == null ? "" : String(input),
+          ...execResult,
+        });
+      }
+
+      const overallStatus = results.every((r) => r.status === JobStatus.ACCEPTED)
+        ? JobStatus.ACCEPTED
+        : results.find((r) => r.status !== JobStatus.ACCEPTED)?.status;
+
+      const response = hasMultipleInputs
+        ? {
+            status: overallStatus,
+            results,
+            stdout: "",
+            stderr: "",
+            exit_code: null,
+          }
+        : {
+            ...results[0],
+          };
 
       return {
-        ...execResult,
+        ...response,
         metrics: {
           compile_time_ms: compileTime,
-          exec_time_ms: execTime,
+          exec_time_ms: execTimeTotal,
         },
       };
     }
 
     if (job.language === "python") {
       fs.writeFileSync(path.join(dir, "main.py"), job.code);
-      const execStart = Date.now();
-      const execResult = await runPython(dir, job.stdin);
-      const execTime = Date.now() - execStart;
+      const results = [];
+      let execTimeTotal = 0;
+
+      for (const input of inputs) {
+        const execStart = Date.now();
+        const execResult = await runPython(dir, input);
+        const execTime = Date.now() - execStart;
+        execTimeTotal += execTime;
+        results.push({
+          stdin: input == null ? "" : String(input),
+          ...execResult,
+        });
+      }
+
+      const overallStatus = results.every((r) => r.status === JobStatus.ACCEPTED)
+        ? JobStatus.ACCEPTED
+        : results.find((r) => r.status !== JobStatus.ACCEPTED)?.status;
+
+      const response = hasMultipleInputs
+        ? {
+            status: overallStatus,
+            results,
+            stdout: "",
+            stderr: "",
+            exit_code: null,
+          }
+        : {
+            ...results[0],
+          };
+
       return {
-        ...execResult,
+        ...response,
         metrics: {
           compile_time_ms: 0,
-          exec_time_ms: execTime,
+          exec_time_ms: execTimeTotal,
         },
       };
     }

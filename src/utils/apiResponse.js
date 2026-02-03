@@ -25,9 +25,19 @@ export class ApiResponse {
     }
 
     if (includeOutput) {
-      response.stdout = job.stdout ?? "";
-      response.stderr = job.stderr ?? "";
-      response.exit_code = job.exit_code !== undefined ? Number(job.exit_code) : null;
+      if (Array.isArray(job.results)) {
+        response.results = job.results;
+      } else {
+        response.results = [
+          {
+            stdin: job.stdin ?? "",
+            status: job.status,
+            stdout: job.stdout ?? "",
+            stderr: job.stderr ?? "",
+            exit_code: job.exit_code !== undefined ? Number(job.exit_code) : null,
+          },
+        ];
+      }
     }
 
     return response;
