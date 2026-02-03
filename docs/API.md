@@ -505,7 +505,41 @@ curl -X GET http://localhost:4000/admin/users/user_12345 \
 
 ---
 
-### 7. List All Users
+### 7. Delete User
+
+**Endpoint:** `DELETE /admin/users/:userId`
+
+**Description:** Delete a user account and related API keys/webhooks (admin only).
+
+**URL Parameters:**
+- `userId`: User ID to delete
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "deleted": true,
+    "userId": "user_id"
+  }
+}
+```
+
+**Error Responses:**
+- `400` - Cannot delete your own account
+- `401` - Not authenticated
+- `403` - Not admin
+- `404` - User not found
+
+**cURL Example:**
+```bash
+curl -X DELETE http://localhost:4000/admin/users/user_12345 \
+  -H "Authorization: Bearer YOUR_ADMIN_TOKEN"
+```
+
+---
+
+### 8. List All Users
 
 **Endpoint:** `GET /admin/users`
 
@@ -573,7 +607,7 @@ curl -X GET "http://localhost:4000/admin/users?limit=20&offset=0" \
 
 ---
 
-### 8. Grant Admin Role
+### 9. Grant Admin Role
 
 **Endpoint:** `POST /admin/users/:userId/make-admin`
 
@@ -613,7 +647,7 @@ curl -X POST http://localhost:4000/admin/users/user_12345/make-admin \
 
 ---
 
-### 9. Revoke Admin Role
+### 10. Revoke Admin Role
 
 **Endpoint:** `POST /admin/users/:userId/revoke-admin`
 

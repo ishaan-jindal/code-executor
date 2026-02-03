@@ -84,6 +84,73 @@ export async function updateUser(userId, updates) {
   return sanitizeUser(updated);
 }
 
+export async function deleteUser(userId) {
+  const user = await getUserById(userId);
+  if (!user) {
+    return false;
+  }
+
+  // Remove API keys for user
+  const keyIds = await redis.smembers(`user:${userId}:apikeys`);
+  if (keyIds && keyIds.length > 0) {
+    for (const keyId of keyIds) {
+      const hashedKey = await redis.get(`apikeyid:${keyId}`);
+      if (hashedKey) {
+        await redis.del(`apikey:${hashedKey}`);
+        await redis.del(`apikeyid:${keyId}`);
+      }
+    }
+    await redis.del(`user:${userId}:apikeys`);
+  }
+
+  // Remove webhooks and deliveries
+  const webhookKeys = [];
+  let cursor = "0";
+  do {
+    const [newCursor, foundKeys] = await redis.scan(
+      cursor,
+      "MATCH",
+      `user:${userId}:webhooks:*`,
+      "COUNT",
+      "100"
+    );
+    cursor = newCursor;
+    webhookKeys.push(...foundKeys);
+  } while (cursor !== "0");
+
+  for (const key of webhookKeys) {
+    const webhookId = key.split(":").pop();
+    if (webhookId) {
+      await redis.del(`webhook:${webhookId}`);
+
+      // Delete deliveries for this webhook
+      let deliveryCursor = "0";
+      do {
+        const [newDeliveryCursor, deliveryKeys] = await redis.scan(
+          deliveryCursor,
+          "MATCH",
+          `webhook:${webhookId}:deliveries:*`,
+          "COUNT",
+          "100"
+        );
+        deliveryCursor = newDeliveryCursor;
+        if (deliveryKeys.length > 0) {
+          await redis.del(...deliveryKeys);
+        }
+      } while (deliveryCursor !== "0");
+    }
+
+    await redis.del(key);
+  }
+
+  // Remove user record and indexes
+  await redis.del(`user:${userId}`);
+  await redis.del(`user:username:${user.username}`);
+  await redis.del(`user:email:${user.email}`);
+
+  return true;
+}
+
 export async function getAllUsers(limit = 100, offset = 0) {
   // Scan for all user keys (pattern: user:user_*)
   const keys = [];

@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticateJWT } from "../../middleware/authMiddleware.js";
 import { requireAdmin } from "../../middleware/adminMiddleware.js";
-import { getUserById, updateUser, getAllUsers } from "../../core/auth/userStore.js";
+import { getUserById, updateUser, getAllUsers, deleteUser } from "../../core/auth/userStore.js";
 import { ApiError } from "../../utils/apiError.js";
 import { info, warn } from "../../infrastructure/logs/logger.js";
 
@@ -175,6 +175,44 @@ router.post("/users/:userId/revoke-admin", authenticateJWT, requireAdmin, async 
       data: {
         user: updated,
         message: `Revoked admin role from ${user.username}`,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Delete User
+ * DELETE /admin/users/:userId
+ */
+router.delete("/users/:userId", authenticateJWT, requireAdmin, async (req, res, next) => {
+  try {
+    const { userId } = req.params;
+    const adminId = req.user.id;
+
+    if (userId === adminId) {
+      throw new ApiError(400, "Cannot delete your own account");
+    }
+
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+
+    await deleteUser(userId);
+
+    warn(`user deleted`, {
+      adminId,
+      userId,
+      username: user.username,
+    });
+
+    return res.json({
+      success: true,
+      data: {
+        deleted: true,
+        userId,
       },
     });
   } catch (err) {
