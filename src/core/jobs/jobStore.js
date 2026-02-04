@@ -1,8 +1,10 @@
 import { redis } from "../../infrastructure/redis/redisClient.js";
 
+const JOB_TTL_SECONDS = Number(process.env.JOB_TTL_SECONDS || 86400); // default: 24h
+
 // Store job JSON to preserve types and schema
 export async function createJob(job) {
-  await redis.set(`job:${job.id}`, JSON.stringify(job));
+  await redis.set(`job:${job.id}`, JSON.stringify(job), "EX", JOB_TTL_SECONDS);
 }
 
 export async function getJob(id) {
@@ -23,5 +25,5 @@ export async function updateJob(id, updates) {
     return;
   }
   const merged = Object.assign({}, typeof current === "object" ? current : {}, updates);
-  await redis.set(`job:${id}`, JSON.stringify(merged));
+  await redis.set(`job:${id}`, JSON.stringify(merged), "KEEPTTL");
 }
