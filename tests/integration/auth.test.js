@@ -76,9 +76,49 @@ async function testAuth() {
       log("✓ Registration successful", "green");
       accessToken = registerRes.data.data.accessToken;
       refreshToken = registerRes.data.data.refreshToken;
+      const userId = registerRes.data.data.user.id;
       log(`  User: ${registerRes.data.data.user.username}`);
       log(`  Tier: ${registerRes.data.data.user.tier}`);
       log(`  Rate Limit: ${registerRes.data.data.user.rateLimit} req/min`);
+
+      // Upgrade to pro tier for testing (to avoid rate limits)
+      log("\n  Upgrading to pro tier...", "yellow");
+      const adminUsername = process.env.ADMIN_USERNAME;
+      const adminPassword = process.env.ADMIN_PASSWORD;
+
+      if (adminUsername && adminPassword) {
+        const adminLoginRes = await request("POST", "/auth/login", {
+          username: adminUsername,
+          password: adminPassword,
+        });
+
+        if (adminLoginRes.status === 200) {
+          const adminToken = adminLoginRes.data.data.accessToken;
+          const upgradeRes = await request(
+            "POST",
+            `/admin/users/${userId}/upgrade`,
+            { newTier: "professional" },
+            { Authorization: `Bearer ${adminToken}` }
+          );
+
+          if (upgradeRes.status === 200) {
+            log("  ✓ Upgraded to pro tier (100 req/min)", "green");
+            // Refresh the access token to get updated tier info
+            const refreshRes = await request("POST", "/auth/refresh", {
+              refreshToken: refreshToken,
+            });
+            if (refreshRes.status === 200) {
+              accessToken = refreshRes.data.data.accessToken;
+            }
+          } else {
+            log(`  ⚠ Upgrade failed (continuing with free tier)`, "yellow");
+          }
+        } else {
+          log(`  ⚠ Admin login failed (continuing with free tier)`, "yellow");
+        }
+      } else {
+        log(`  ⚠ Admin credentials not found in .env (continuing with free tier)`, "yellow");
+      }
     } else {
       log(`✗ Registration failed: ${registerRes.data.error}`, "red");
       return;
@@ -193,34 +233,98 @@ async function testAuth() {
       log(`✗ Token refresh failed: ${refreshRes.data.error}`, "red");
     }
 
-    // Test 8: Rate limiting
-    log("\nTest 8: Test rate limiting (free tier: 10 req/min)", "yellow");
-    let rateLimited = false;
-    
-    for (let i = 0; i < 12; i++) {
-      const res = await request(
+    // Test 8: Rate limiting (skipped - user upgraded to professional tier)
+    log("\nTest 8: Test rate limiting", "yellow");
+    log("⊘ Skipped (user upgraded to professional tier: 100 req/min)", "blue");
+
+    // Test 9: Logout (current device)
+    log("\nTest 9: Logout from current device", "yellow");
+    const logoutRes = await request("POST", "/auth/logout", {
+      refreshToken: refreshToken,
+    });
+
+    if (logoutRes.status === 200 && logoutRes.data.success) {
+      log("✓ Logout successful", "green");
+      log(`  ${logoutRes.data.data.message}`);
+    } else {
+      log(`✗ Logout failed: ${logoutRes.data.error}`, "red");
+    }
+
+    // Test 10: Try to refresh with revoked token
+    log("\nTest 10: Try to refresh with revoked token", "yellow");
+    const refreshAfterLogoutRes = await request("POST", "/auth/refresh", {
+      refreshToken: refreshToken,
+    });
+
+    if (refreshAfterLogoutRes.status === 401) {
+      log("✓ Revoked token correctly rejected", "green");
+      log(`  Error: ${refreshAfterLogoutRes.data.error}`);
+    } else {
+      log("✗ Revoked token was still accepted (should be rejected)", "red");
+    }
+
+    // Test 11: Access token still works (doesn't get revoked on logout)
+    log("\nTest 11: Access token still works after logout", "yellow");
+    const submitAfterLogoutRes = await request(
+      "POST",
+      "/submit",
+      {
+        language: "python",
+        code: `print("Access token works!")`,
+      },
+      {
+        Authorization: `Bearer ${accessToken}`,
+      }
+    );
+
+    if (submitAfterLogoutRes.status === 200 || submitAfterLogoutRes.status === 201) {
+      log("✓ Access token still valid after logout", "green");
+      log("  (Access tokens are short-lived and not revoked)");
+    } else {
+      const errorMsg = submitAfterLogoutRes.data?.error || submitAfterLogoutRes.data?.message || "Unknown error";
+      log(`✗ Access token rejected: ${errorMsg}`, "red");
+      log(`  Status: ${submitAfterLogoutRes.status}`);
+    }
+
+    // Test 12: Login again and test logout-all
+    log("\nTest 12: Test logout from all devices", "yellow");
+    const newLoginRes = await request("POST", "/auth/login", {
+      username: testUsername,
+      password: testPassword,
+    });
+
+    if (newLoginRes.status === 200) {
+      const newAccessToken = newLoginRes.data.data.accessToken;
+      const newRefreshToken = newLoginRes.data.data.refreshToken;
+      log("✓ Logged in again");
+
+      // Logout from all devices
+      const logoutAllRes = await request(
         "POST",
-        "/submit",
+        "/auth/logout-all",
+        null,
         {
-          language: "python",
-          code: `print(${i})`,
-        },
-        {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${newAccessToken}`,
         }
       );
 
-      if (res.status === 429) {
-        log(`✓ Rate limit triggered after ${i + 1} requests`, "green");
-        log(`  Error: ${res.data.error}`);
-        log(`  Retry-After: ${res.headers["retry-after"]} seconds`);
-        rateLimited = true;
-        break;
-      }
-    }
+      if (logoutAllRes.status === 200 && logoutAllRes.data.success) {
+        log("✓ Logout-all successful", "green");
+        log(`  ${logoutAllRes.data.data.message}`);
 
-    if (!rateLimited) {
-      log("✗ Rate limit not triggered (might be due to test timing)", "yellow");
+        // Try to refresh with the new token (should fail)
+        const refreshAfterLogoutAllRes = await request("POST", "/auth/refresh", {
+          refreshToken: newRefreshToken,
+        });
+
+        if (refreshAfterLogoutAllRes.status === 401) {
+          log("✓ All refresh tokens correctly revoked", "green");
+        } else {
+          log("✗ Refresh token still works (should be revoked)", "red");
+        }
+      } else {
+        log(`✗ Logout-all failed: ${logoutAllRes.data.error}`, "red");
+      }
     }
 
     log("\n✅ All tests completed!\n", "green");

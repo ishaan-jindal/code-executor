@@ -18,6 +18,13 @@ import {
   listApiKeys,
   revokeApiKey,
 } from "../../core/auth/apiKeyStore.js";
+import { 
+  storeRefreshToken, 
+  revokeRefreshToken, 
+  revokeAllUserRefreshTokens,
+  validateRefreshToken,
+  getDeviceInfo 
+} from "../../core/auth/refreshTokenStore.js";
 import { authenticateJWT } from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -53,6 +60,10 @@ router.post("/register", async (req, res, next) => {
     // Generate tokens
     const accessToken = generateAccessToken(user);
     const refreshToken = generateRefreshToken(user);
+    
+    // Store refresh token in database
+    const deviceInfo = getDeviceInfo(req);
+    await storeRefreshToken(refreshToken, user.id, deviceInfo);
     
     return res.status(201).json({
       success: true,
@@ -105,6 +116,10 @@ router.post("/login", async (req, res, next) => {
     const accessToken = generateAccessToken(safeUser);
     const refreshToken = generateRefreshToken(safeUser);
     
+    // Store refresh token in database
+    const deviceInfo = getDeviceInfo(req);
+    await storeRefreshToken(refreshToken, safeUser.id, deviceInfo);
+    
     return res.json({
       success: true,
       data: {
@@ -146,6 +161,12 @@ router.post("/refresh", async (req, res, next) => {
       throw new ApiError(401, "Invalid token type");
     }
     
+    // Check if refresh token exists in database (not revoked)
+    const tokenData = await validateRefreshToken(refreshToken);
+    if (!tokenData) {
+      throw new ApiError(401, "Refresh token has been revoked or is invalid");
+    }
+    
     // Get user
     const user = await getUserById(decoded.sub);
     if (!user) {
@@ -161,6 +182,56 @@ router.post("/refresh", async (req, res, next) => {
       success: true,
       data: {
         accessToken,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Logout User (Current Device)
+ * POST /auth/logout
+ * Revokes only the current refresh token (single device logout)
+ */
+router.post("/logout", async (req, res, next) => {
+  try {
+    const { refreshToken } = req.body;
+    
+    if (!refreshToken) {
+      throw new ApiError(400, "Refresh token is required");
+    }
+    
+    // Revoke this specific refresh token
+    await revokeRefreshToken(refreshToken);
+    
+    return res.json({
+      success: true,
+      data: {
+        message: "Logged out successfully",
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Logout All Devices
+ * POST /auth/logout-all
+ * Revokes ALL refresh tokens for the authenticated user (all sessions)
+ */
+router.post("/logout-all", authenticateJWT, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    
+    // Revoke all refresh tokens for this user
+    await revokeAllUserRefreshTokens(userId);
+    
+    return res.json({
+      success: true,
+      data: {
+        message: "Logged out from all devices successfully",
       },
     });
   } catch (err) {

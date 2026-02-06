@@ -33,6 +33,8 @@ The API supports two authentication methods:
    Authorization: Bearer <your-access-token>
    ```
 4. **Refresh Token**: When access token expires (15 minutes), use refresh token at `POST /auth/refresh`
+5. **Logout**: Revoke current device's refresh token at `POST /auth/logout` (pass refresh token in body)
+6. **Logout All**: Revoke ALL devices at `POST /auth/logout-all` (requires access token, revokes all refresh tokens)
 
 ### Getting Started with API Keys
 
@@ -211,6 +213,7 @@ curl -X POST http://localhost:4000/auth/login \
 **Error Responses:**
 - `400` - Missing refresh token
 - `401` - Invalid or expired refresh token
+- `401` - Token has been revoked (user logged out)
 
 **cURL Example:**
 ```bash
@@ -223,7 +226,90 @@ curl -X POST http://localhost:4000/auth/refresh \
 
 ---
 
-### 4. Get Current User
+### 4. Logout
+
+**Endpoint:** `POST /auth/logout`
+
+**Description:** Logout from the current device by revoking the refresh token. Access tokens remain valid until expiration (15 min).
+
+**Request Body:**
+```json
+{
+  "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Logged out successfully"
+  }
+}
+```
+
+**Error Responses:**
+- `400` - Missing refresh token
+
+**Notes:**
+- Only revokes the specific refresh token (single device logout)
+- Access tokens continue to work until they expire (15 minutes max)
+- The refresh token is stored hashed in Redis and tied to user/device
+- To logout from all devices, use `POST /auth/logout-all`
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:4000/auth/logout \
+  -H "Content-Type: application/json" \
+  -d '{
+    "refreshToken": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }'
+```
+
+---
+
+### 5. Logout All Devices
+
+**Endpoint:** `POST /auth/logout-all`
+
+**Description:** Logout from ALL devices by revoking all refresh tokens for the user. Requires authentication.
+
+**Request Headers:**
+```
+Authorization: Bearer <access_token>
+```
+
+**Request Body:** (None required)
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Logged out from all devices successfully"
+  }
+}
+```
+
+**Error Responses:**
+- `401` - Not authenticated or invalid token
+
+**Notes:**
+- Revokes ALL refresh tokens for the user (all active sessions)
+- Current access token continues to work until expiration (15 minutes max)
+- Useful for security scenarios (e.g., password change, suspected compromise)
+- User must log in again on all devices after this operation
+
+**cURL Example:**
+```bash
+curl -X POST http://localhost:4000/auth/logout-all \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+```
+
+---
+
+### 6. Get Current User
 
 **Endpoint:** `GET /auth/me`
 
@@ -261,7 +347,7 @@ curl -X GET http://localhost:4000/auth/me \
 
 ---
 
-### 5. Generate API Key
+### 7. Generate API Key
 
 **Endpoint:** `POST /auth/api-keys`
 
@@ -311,7 +397,7 @@ curl -X POST http://localhost:4000/auth/api-keys \
 
 ---
 
-### 6. List API Keys
+### 7. List API Keys
 
 **Endpoint:** `GET /auth/api-keys`
 
@@ -357,7 +443,7 @@ curl -X GET http://localhost:4000/auth/api-keys \
 
 ---
 
-### 7. Revoke API Key
+### 8. Revoke API Key
 
 **Endpoint:** `DELETE /auth/api-keys/:keyId`
 
