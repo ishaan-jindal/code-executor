@@ -4,7 +4,7 @@ import { info } from "../../infrastructure/logs/logger.js";
 import { ApiError } from "../../utils/apiError.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
 import { metrics } from "../../infrastructure/metrics/metricsCollector.js";
-import { createJob, getJob } from "../../core/jobs/jobStore.js";
+import { createJob, getJob, addJobToUserIndex, getUserJobIds, getUserJobCount } from "../../core/jobs/jobStore.js";
 import { enqueueJob } from "../../core/jobs/jobQueue.js";
 import { JobStatus } from "../../core/jobs/jobTypes.js";
 import { authenticateJWT } from "../../middleware/authMiddleware.js";
@@ -88,6 +88,8 @@ router.post("/submit", authenticateJWT, rateLimitByUser(), async (req, res, next
       status: JobStatus.QUEUED,
       created_at: Date.now(),
     });
+
+    await addJobToUserIndex(userId, jobId);
 
     await enqueueJob(jobId);
 
@@ -194,19 +196,33 @@ router.get("/jobs", authenticateJWT, checkRateLimit(), async (req, res, next) =>
     const userId = req.user.id;
     const { status, language, limit = 50, offset = 0, from, to } = req.query;
 
-    // Validate limit
     const pageLimit = Math.min(parseInt(limit) || 50, 100);
     const pageOffset = parseInt(offset) || 0;
 
-    // In a real system, you'd query a database
-    // For now, we return a placeholder response
-    // TODO: Implement job filtering in Redis
+    const [jobIds, total] = await Promise.all([
+      getUserJobIds(userId, pageOffset, pageLimit),
+      getUserJobCount(userId),
+    ]);
+
+    // Fetch all jobs in parallel
+    const jobs = (
+      await Promise.all(jobIds.map((id) => getJob(id)))
+    ).filter(Boolean); // filter nulls (expired jobs)
+
+    // Apply filters in-memory
+    const filtered = jobs.filter((job) => {
+      if (status && job.status !== status) return false;
+      if (language && job.language !== language) return false;
+      if (from && job.created_at < parseInt(from)) return false;
+      if (to && job.created_at > parseInt(to)) return false;
+      return true;
+    });
 
     return res.json({
       success: true,
       data: {
-        jobs: [],
-        total: 0,
+        jobs: filtered,
+        total: parseInt(total),
         limit: pageLimit,
         offset: pageOffset,
         filters: {
