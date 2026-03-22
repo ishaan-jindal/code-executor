@@ -5,6 +5,7 @@ Secure, isolated code execution service with JWT authentication, user-based rate
 ## Endpoints
 
 ### Authentication
+
 - **POST /auth/register** - Register new user
 - **POST /auth/login** - Login and get JWT tokens
 - **POST /auth/refresh** - Refresh access token
@@ -14,6 +15,7 @@ Secure, isolated code execution service with JWT authentication, user-based rate
 - **DELETE /auth/api-keys/:keyId** - Revoke API key
 
 ### Admin (Requires Admin Role)
+
 - **POST /admin/users/:userId/upgrade** - Upgrade user tier
 - **GET /admin/users/:userId** - View user details
 - **GET /admin/users** - List all users (paginated)
@@ -21,16 +23,19 @@ Secure, isolated code execution service with JWT authentication, user-based rate
 - **POST /admin/users/:userId/revoke-admin** - Revoke admin role
 
 ### Core Execution (Requires Authentication)
+
 - **POST /submit** - Submit code for execution (rate limited by tier)
 - **GET /result/:id** - Poll job result (only your jobs)
 
 ### Advanced Features (Requires Authentication)
+
 - **GET /jobs/:id/code** - Retrieve code from previous submission
 - **GET /jobs** - Search job history with filters
 - **GET /languages** - List all supported languages (public)
 - **GET /languages/:lang** - Get language details (public)
 
 ### Webhooks (Requires Authentication)
+
 - **POST /webhooks** - Register webhook callback
 - **GET /webhooks** - List your webhooks
 - **GET /webhooks/:id** - Get webhook details
@@ -38,6 +43,7 @@ Secure, isolated code execution service with JWT authentication, user-based rate
 - **DELETE /webhooks/:id** - Delete webhook
 
 ### Monitoring & Diagnostics  
+
 - **GET /health** - Health check with Redis connectivity
 - **GET /status** - Real-time metrics summary (JSON)
 - **GET /metrics** - Prometheus-format metrics
@@ -122,12 +128,14 @@ curl -X POST http://localhost:4000/submit \
 ### 3. Rate Limiting
 
 Rate limits based on user tier:
+
 - **free**: 10 requests/minute
 - **starter**: 50 requests/minute
 - **professional**: 100 requests/minute
 - **enterprise**: 500 requests/minute
 
 Headers returned with each authenticated request:
+
 - `X-RateLimit-Limit`: Your tier's limit
 - `X-RateLimit-Remaining`: Remaining requests this minute
 - `X-RateLimit-Reset`: Unix timestamp when limit resets
@@ -141,6 +149,7 @@ npm run seed
 ```
 
 This creates:
+
 - **admin** / AdminPass123! - Admin user (enterprise tier)
 - **alice** / AlicePass123! - Free tier user
 - **bob** / BobPass123! - Starter tier user
@@ -150,12 +159,14 @@ This creates:
 ### Admin Operations
 
 With admin credentials, you can:
+
 - Upgrade user tiers
 - View user details
 - Grant/revoke admin privileges
 - View admin statistics
 
 Example:
+
 ```bash
 # Login as admin
 ADMIN_TOKEN=$(curl -s -X POST http://localhost:4000/auth/login \
@@ -189,7 +200,7 @@ See [docs/MONITORING.md](docs/MONITORING.md) for complete guide.
 
 ## Project Structure
 
-```
+```bash
 src/
 ├── api/                    # API layer
 │   └── routes/            # Express route handlers (auth, jobs, health)
@@ -224,44 +235,50 @@ tests/                   # Test suites
 ## Features
 
 ✅ **Authentication & Authorization**
-  - JWT-based authentication (access + refresh tokens)
-  - API key support for programmatic access
-  - User registration and login
-  - Bcrypt password hashing
-  - Role-based access control (user/admin)
-  - User-based rate limiting by tier
+
+- JWT-based authentication (access + refresh tokens)
+- API key support for programmatic access
+- User registration and login
+- Bcrypt password hashing
+- Role-based access control (user/admin)
+- User-based rate limiting by tier
 
 ✅ **Security**
-  - Docker isolation with gVisor sandbox
-  - Resource limits (64MB memory, 0.5 CPU)
-  - Seccomp filtering
-  - User isolation (users can only access their own jobs)
-  - HMAC-signed webhook deliveries
+
+- Docker isolation with gVisor sandbox
+- Resource limits (64MB memory, 0.5 CPU)
+- Seccomp filtering
+- User isolation (users can only access their own jobs)
+- HMAC-signed webhook deliveries
 
 ✅ **Code Execution**
-  - Python 3.12 and C (GCC 13) support
-  - stdin/stdout/stderr capture
-  - Timeout protection (2s default)
-  - Queue-based job distribution
-  - Execution metrics (compile time, run time, queue wait)
+
+- Python 3.12 and C (GCC 13) support
+- stdin/stdout/stderr capture
+- Timeout protection (2s default)
+- Queue-based job distribution
+- Execution metrics (compile time, run time, queue wait)
 
 ✅ **Advanced Features**
-  - Code retrieval from past submissions
-  - Job search and filtering
-  - Language metadata API
-  - Webhook callbacks on job completion
-  - Automatic webhook retry with exponential backoff
+
+- Code retrieval from past submissions
+- Job search and filtering
+- Language metadata API
+- Webhook callbacks on job completion
+- Automatic webhook retry with exponential backoff
 
 ✅ **Monitoring & Observability**
-  - Comprehensive metrics collection
-  - Prometheus integration
-  - Grafana dashboards (11 panels)
-  - Health checks and diagnostics
-  - Request logging with correlation IDs
+
+- Comprehensive metrics collection
+- Prometheus integration
+- Grafana dashboards (11 panels)
+- Health checks and diagnostics
+- Request logging with correlation IDs
 
 ✅ **Performance & Reliability**
-  - Redis-backed persistence
-  - Graceful shutdown
-  - Rate limiting with sliding window
-  - Comprehensive test suite (unit + integration)
-  - Load testing with k6
+
+- Redis-backed persistence
+- Graceful shutdown
+- Rate limiting with sliding window
+- Comprehensive test suite (unit + integration)
+- Load testing with k6
