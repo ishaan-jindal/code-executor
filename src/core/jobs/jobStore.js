@@ -1,6 +1,7 @@
 import { redis } from "../../infrastructure/redis/redisClient.js";
+import config from "../../config/index.js";
 
-const JOB_TTL_SECONDS = Number(process.env.JOB_TTL_SECONDS || 86400); // default: 24h
+const JOB_TTL_SECONDS = config.jobTtlSeconds;
 
 // Store job JSON to preserve types and schema
 export async function createJob(job) {
@@ -12,7 +13,7 @@ export async function getJob(id) {
   if (!data) return null;
   try {
     return JSON.parse(data);
-  } catch (e) {
+  } catch {
     // fallback: return raw string
     return data;
   }
@@ -24,16 +25,18 @@ export async function updateJob(id, updates) {
     // Job was deleted, don't update
     return;
   }
-  const merged = Object.assign({}, typeof current === "object" ? current : {}, updates);
+  const merged = Object.assign(
+    {},
+    typeof current === "object" ? current : {},
+    updates
+  );
   await redis.set(`job:${id}`, JSON.stringify(merged), "KEEPTTL");
 }
-
-const USER_JOBS_TTL = Number(process.env.JOB_TTL_SECONDS || 86400);
 
 export async function addJobToUserIndex(userId, jobId) {
   const key = `user:${userId}:jobs`;
   await redis.lpush(key, jobId);
-  await redis.expire(key, USER_JOBS_TTL);
+  await redis.expire(key, JOB_TTL_SECONDS);
 }
 
 export async function getUserJobIds(userId, offset = 0, limit = 50) {

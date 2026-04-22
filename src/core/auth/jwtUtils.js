@@ -1,8 +1,5 @@
 import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "change-this-secret-in-production";
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "15m";
-const REFRESH_TOKEN_EXPIRES_IN = process.env.REFRESH_TOKEN_EXPIRES_IN || "7d";
+import config from "../../config/index.js";
 
 /**
  * Generate access token (short-lived)
@@ -17,8 +14,10 @@ export function generateAccessToken(user) {
     role: user.role || "user",
     type: "access",
   };
-  
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+  return jwt.sign(payload, config.jwtSecret, {
+    expiresIn: config.jwtExpiresIn,
+  });
 }
 
 /**
@@ -29,8 +28,10 @@ export function generateRefreshToken(user) {
     sub: user.id,
     type: "refresh",
   };
-  
-  return jwt.sign(payload, JWT_SECRET, { expiresIn: REFRESH_TOKEN_EXPIRES_IN });
+
+  return jwt.sign(payload, config.jwtSecret, {
+    expiresIn: config.refreshTokenExpiresIn,
+  });
 }
 
 /**
@@ -38,7 +39,7 @@ export function generateRefreshToken(user) {
  */
 export function verifyToken(token) {
   try {
-    return jwt.verify(token, JWT_SECRET);
+    return jwt.verify(token, config.jwtSecret);
   } catch (err) {
     if (err.name === "TokenExpiredError") {
       throw new Error("Token expired");

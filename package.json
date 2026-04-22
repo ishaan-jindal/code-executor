@@ -4,7 +4,8 @@
   "scripts": {
     "start": "node server.js",
     "dev": "nodemon --config config/nodemon.json server.js",
-    "test": "npm run test:unit && npm run test:integration",
+    "test": "npm run test:unit:pure && npm run test:unit && npm run test:integration",
+    "test:unit:pure": "node --test tests/unit/apiError.test.js tests/unit/apiResponse.test.js tests/unit/outputHandler.test.js tests/unit/config.test.js tests/unit/crypto.test.js tests/unit/metricsCollector.test.js tests/unit/languageRegistry.test.js tests/unit/executionLimiter.test.js tests/unit/sandbox.test.js",
     "test:unit": "npm run test:unit:metrics && npm run test:unit:webhooks && npm run test:unit:language && npm run test:unit:apikey",
     "test:unit:metrics": "node tests/unit/metrics.test.js",
     "test:unit:webhooks": "node tests/unit/webhooks.test.js",
@@ -15,12 +16,12 @@
     "test:integration:auth": "node tests/integration/auth.test.js",
     "test:integration:advanced": "node tests/integration/advanced-features.test.js",
     "seed": "node scripts/seed.js",
+    "seed:admin": "node scripts/seed-admin.js",
     "diagnose": "node scripts/diagnose.js",
     "load:test": "k6 run scripts/load-test.js"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
-    "body-parser": "^2.2.1",
     "cors": "^2.8.6",
     "dotenv": "^16.4.7",
     "express": "^5.2.1",

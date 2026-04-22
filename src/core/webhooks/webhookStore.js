@@ -1,20 +1,34 @@
 import { redis } from "../../infrastructure/redis/redisClient.js";
 
-// ioredis methods already return Promises, no need to promisify
-const redisGet = redis.get.bind(redis);
-const redisSet = redis.set.bind(redis);
-const redisDel = redis.del.bind(redis);
-const redisKeys = redis.keys.bind(redis);
-const redisHGetAll = redis.hgetall.bind(redis);
-const redisHSet = redis.hset.bind(redis);
-const redisHDel = redis.hdel.bind(redis);
-const redisScan = redis.scan.bind(redis);
-
 export const WEBHOOK_STATUS = {
   ACTIVE: "active",
   INACTIVE: "inactive",
   FAILED: "failed",
 };
+
+/**
+ * Scan for Redis keys matching a pattern.
+ * Uses SCAN instead of KEYS to avoid blocking Redis.
+ *
+ * @param {string} pattern - Redis key pattern
+ * @returns {Promise<string[]>} Matching keys
+ */
+async function scanKeys(pattern) {
+  const keys = [];
+  let cursor = "0";
+  do {
+    const [newCursor, foundKeys] = await redis.scan(
+      cursor,
+      "MATCH",
+      pattern,
+      "COUNT",
+      "100"
+    );
+    cursor = newCursor;
+    keys.push(...foundKeys);
+  } while (cursor !== "0");
+  return keys;
+}
 
 /**
  * Register a webhook for a user
@@ -34,7 +48,7 @@ export async function createWebhook(userId, url, options = {}) {
     throw new Error("Invalid webhook URL format");
   }
 
-  const webhookId = `wh_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+  const webhookId = `wh_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
   const webhook = {
     id: webhookId,
     userId,
@@ -48,10 +62,10 @@ export async function createWebhook(userId, url, options = {}) {
   };
 
   const key = `webhook:${webhookId}`;
-  await redisSet(key, JSON.stringify(webhook), "EX", 7776000); // 90 days
+  await redis.set(key, JSON.stringify(webhook), "EX", 7776000); // 90 days
 
   // Index for user's webhooks
-  await redisSet(`user:${userId}:webhooks:${webhookId}`, "1", "EX", 7776000);
+  await redis.set(`user:${userId}:webhooks:${webhookId}`, "1", "EX", 7776000);
 
   return webhook;
 }
@@ -62,7 +76,7 @@ export async function createWebhook(userId, url, options = {}) {
  * @returns {Promise<Object|null>} - Webhook object or null
  */
 export async function getWebhook(webhookId) {
-  const data = await redisGet(`webhook:${webhookId}`);
+  const data = await redis.get(`webhook:${webhookId}`);
   return data ? JSON.parse(data) : null;
 }
 
@@ -74,7 +88,7 @@ export async function getWebhook(webhookId) {
  */
 export async function deleteWebhook(userId, webhookId) {
   const webhook = await getWebhook(webhookId);
-  
+
   if (!webhook) {
     return false;
   }
@@ -83,20 +97,22 @@ export async function deleteWebhook(userId, webhookId) {
     throw new Error("Unauthorized: webhook belongs to different user");
   }
 
-  await redisDel(`webhook:${webhookId}`);
-  await redisDel(`user:${userId}:webhooks:${webhookId}`);
+  await redis.del(`webhook:${webhookId}`);
+  await redis.del(`user:${userId}:webhooks:${webhookId}`);
 
   return true;
 }
 
 /**
  * Get all webhooks for a user
+ * Uses SCAN instead of KEYS to avoid blocking Redis.
+ *
  * @param {string} userId - User ID
  * @returns {Promise<Array>} - Array of webhooks
  */
 export async function getUserWebhooks(userId) {
   const pattern = `user:${userId}:webhooks:*`;
-  const keys = await redisKeys(pattern);
+  const keys = await scanKeys(pattern);
 
   if (keys.length === 0) {
     return [];
@@ -121,9 +137,9 @@ export async function getUserWebhooks(userId) {
  */
 export async function recordWebhookDelivery(webhookId, delivery) {
   const key = `webhook:${webhookId}:deliveries`;
-  const deliveryId = `${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-  
-  await redisSet(
+  const deliveryId = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
+
+  await redis.set(
     `${key}:${deliveryId}`,
     JSON.stringify({
       ...delivery,
@@ -133,27 +149,29 @@ export async function recordWebhookDelivery(webhookId, delivery) {
     2592000 // 30 days
   );
 
-  // Keep last 100 deliveries
+  // Prune old deliveries (keep last 100) using SCAN
   const pattern = `${key}:*`;
-  const deliveries = await redisKeys(pattern);
+  const deliveries = await scanKeys(pattern);
   if (deliveries.length > 100) {
     // Sort and delete oldest
     const oldest = deliveries.sort().slice(0, deliveries.length - 100);
-    for (const del of oldest) {
-      await redisDel(del);
+    for (const oldKey of oldest) {
+      await redis.del(oldKey);
     }
   }
 }
 
 /**
  * Get webhook delivery history
+ * Uses SCAN instead of KEYS.
+ *
  * @param {string} webhookId - Webhook ID
  * @param {number} limit - Max deliveries to return
  * @returns {Promise<Array>} - Delivery records
  */
 export async function getWebhookDeliveries(webhookId, limit = 50) {
   const pattern = `webhook:${webhookId}:deliveries:*`;
-  const keys = await redisKeys(pattern);
+  const keys = await scanKeys(pattern);
 
   if (keys.length === 0) {
     return [];
@@ -163,7 +181,7 @@ export async function getWebhookDeliveries(webhookId, limit = 50) {
   const sorted = keys.sort().reverse().slice(0, limit);
 
   for (const key of sorted) {
-    const data = await redisGet(key);
+    const data = await redis.get(key);
     if (data) {
       deliveries.push(JSON.parse(data));
     }
@@ -185,7 +203,7 @@ export async function updateWebhookStatus(webhookId, status) {
   webhook.updated_at = Date.now();
 
   const key = `webhook:${webhookId}`;
-  await redisSet(key, JSON.stringify(webhook), "EX", 7776000);
+  await redis.set(key, JSON.stringify(webhook), "EX", 7776000);
 }
 
 /**
@@ -206,7 +224,7 @@ export async function incrementFailedAttempts(webhookId) {
   webhook.updated_at = Date.now();
 
   const key = `webhook:${webhookId}`;
-  await redisSet(key, JSON.stringify(webhook), "EX", 7776000);
+  await redis.set(key, JSON.stringify(webhook), "EX", 7776000);
 }
 
 /**
@@ -222,5 +240,5 @@ export async function resetFailedAttempts(webhookId) {
   webhook.updated_at = Date.now();
 
   const key = `webhook:${webhookId}`;
-  await redisSet(key, JSON.stringify(webhook), "EX", 7776000);
+  await redis.set(key, JSON.stringify(webhook), "EX", 7776000);
 }

@@ -1,3 +1,9 @@
+import config from "../../config/index.js";
+
+/**
+ * Concurrency limiter for code execution.
+ * Limits the number of simultaneous Docker containers running.
+ */
 class ExecutionLimiter {
   constructor(maxConcurrent, maxQueue = 1000) {
     this.max = maxConcurrent;
@@ -27,4 +33,7 @@ class ExecutionLimiter {
   }
 }
 
-export const executionLimiter = new ExecutionLimiter(Number(process.env.MAX_CONCURRENT || 10), Number(process.env.MAX_QUEUE || 1000));
+export const executionLimiter = new ExecutionLimiter(
+  config.maxConcurrent,
+  config.maxQueue
+);

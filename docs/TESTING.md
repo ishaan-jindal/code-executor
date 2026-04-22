@@ -42,7 +42,14 @@ npm test
 
 This runs all unit tests followed by all integration tests.
 
-### Run Unit Tests Only
+### Run Pure Unit Tests (No Dependencies)
+
+```bash
+npm run test:unit:pure
+```
+These tests use the built-in `node:test` runner and do not require Redis or a running server. They cover core logic like configuration, metrics calculations, API response formatting, and error handling.
+
+### Run Redis-Dependent Unit Tests
 
 ```bash
 npm run test:unit

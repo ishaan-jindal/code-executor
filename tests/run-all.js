@@ -8,13 +8,31 @@
 import { spawn } from "child_process";
 
 const tests = [
-  { name: "Metrics", path: "tests/unit/metrics.test.js", type: "unit" },
-  { name: "Webhooks", path: "tests/unit/webhooks.test.js", type: "unit" },
-  { name: "Language Registry", path: "tests/unit/language-registry.test.js", type: "unit" },
-  { name: "API Keys", path: "tests/unit/apikey.test.js", type: "unit" },
-  { name: "Integration", path: "tests/integration/integration.test.js", type: "integration" },
-  { name: "Auth", path: "tests/integration/auth.test.js", type: "integration" },
-  { name: "Advanced Features", path: "tests/integration/advanced-features.test.js", type: "integration" },
+  // Pure unit tests (no external dependencies)
+  {
+    name: "Pure Unit Tests",
+    cmd: "node",
+    args: [
+      "--test",
+      "tests/unit/apiError.test.js",
+      "tests/unit/apiResponse.test.js",
+      "tests/unit/outputHandler.test.js",
+      "tests/unit/config.test.js",
+      "tests/unit/crypto.test.js",
+      "tests/unit/metricsCollector.test.js",
+      "tests/unit/languageRegistry.test.js",
+      "tests/unit/executionLimiter.test.js",
+      "tests/unit/sandbox.test.js",
+    ],
+    type: "unit",
+  },
+  // Redis-dependent unit tests
+  { name: "Webhooks (Redis)", cmd: "node", args: ["tests/unit/webhooks.test.js"], type: "unit" },
+  { name: "API Keys (Redis)", cmd: "node", args: ["tests/unit/apikey.test.js"], type: "unit" },
+  // Integration tests (require running server + Redis)
+  { name: "Integration", cmd: "node", args: ["tests/integration/integration.test.js"], type: "integration" },
+  { name: "Auth", cmd: "node", args: ["tests/integration/auth.test.js"], type: "integration" },
+  { name: "Advanced Features", cmd: "node", args: ["tests/integration/advanced-features.test.js"], type: "integration" },
 ];
 
 function runTest(test) {
@@ -24,7 +42,7 @@ function runTest(test) {
     console.log("=".repeat(60));
 
     const startTime = Date.now();
-    const proc = spawn("node", [test.path], {
+    const proc = spawn(test.cmd, test.args, {
       stdio: "inherit",
       env: { ...process.env },
     });

@@ -60,6 +60,8 @@ chmod +x /usr/local/bin/runsc
 runsc --version
 ```
 
+If `runsc` is properly registered with Docker, the code executor will detect it on startup automatically using `docker info`. If you wish to disable gVisor despite having it installed, you can set `DISABLE_GVISOR=true` in your `.env` file.
+
 ### Docker Configuration
 Ensure Docker daemon can use gVisor runtime by configuring `/etc/docker/daemon.json`:
 
@@ -110,13 +112,14 @@ RUN apk add --no-cache <language-packages>
 WORKDIR /app
 ```
 
-### Modifying Resource Limits
-
-Edit limits in `runner/runBinary.js` and `runner/runPython.js`:
+Edit the centralized limits in `src/config/index.js` under the `sandbox` section, which applies to all runners automatically:
 ```javascript
-"--memory=128m",  // Change memory limit
-"--cpus=1",       // Change CPU limit
-"--pids-limit=64" // Change process limit
+  sandbox: Object.freeze({
+    memoryLimit: "64m",
+    cpuLimit: "0.5",
+    pidsLimit: "32",
+    // ...
+  }),
 ```
 
 ## Troubleshooting

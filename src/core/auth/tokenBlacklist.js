@@ -1,36 +1,10 @@
 import { redis } from "../../infrastructure/redis/redisClient.js";
-import crypto from "crypto";
+import { hashToken } from "../../utils/crypto.js";
+import { parseTimeToSeconds } from "../../config/index.js";
 
 /**
  * Token Blacklist - Revoke all tokens for a user by timestamp
  */
-
-/**
- * Hash a token for storage (to avoid storing full JWTs)
- */
-function hashToken(token) {
-  return crypto.createHash("sha256").update(token).digest("hex");
-}
-
-/**
- * Convert time string (e.g., "7d") to seconds
- */
-function parseTimeToSeconds(timeStr) {
-  const match = timeStr.match(/^(\d+)([smhd])$/);
-  if (!match) return 604800; // default 7 days
-  
-  const value = parseInt(match[1]);
-  const unit = match[2];
-  
-  const multipliers = {
-    s: 1,
-    m: 60,
-    h: 3600,
-    d: 86400,
-  };
-  
-  return value * (multipliers[unit] || 86400);
-}
 
 /**
  * Revoke all tokens for a specific user
@@ -39,7 +13,7 @@ function parseTimeToSeconds(timeStr) {
 export async function revokeAllUserTokens(userId) {
   const timestamp = Math.floor(Date.now() / 1000);
   const ttl = parseTimeToSeconds(process.env.REFRESH_TOKEN_EXPIRES_IN || "7d");
-  
+
   // Store logout timestamp - any token issued before this is invalid
   await redis.set(`user:${userId}:logout_ts`, timestamp.toString(), "EX", ttl);
 }
@@ -53,8 +27,8 @@ export async function revokeAllUserTokens(userId) {
 export async function isTokenRevokedForUser(userId, tokenIssuedAt) {
   const logoutTs = await redis.get(`user:${userId}:logout_ts`);
   if (!logoutTs) return false;
-  
-  const logoutTimestamp = parseInt(logoutTs);
+
+  const logoutTimestamp = parseInt(logoutTs, 10);
   return tokenIssuedAt < logoutTimestamp;
 }
 
@@ -65,8 +39,10 @@ export async function isTokenRevokedForUser(userId, tokenIssuedAt) {
  */
 export async function revokeToken(token, expiresIn) {
   const tokenHash = hashToken(token);
-  const ttl = expiresIn || parseTimeToSeconds(process.env.REFRESH_TOKEN_EXPIRES_IN || "7d");
-  
+  const ttl =
+    expiresIn ||
+    parseTimeToSeconds(process.env.REFRESH_TOKEN_EXPIRES_IN || "7d");
+
   // Store in blacklist with TTL matching token expiration
   await redis.set(`blacklist:token:${tokenHash}`, "1", "EX", ttl);
 }

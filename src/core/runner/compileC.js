@@ -1,33 +1,28 @@
 import { execFile } from "child_process";
 import { promisify } from "util";
-import path from "path";
 import { JobStatus } from "../jobs/jobTypes.js";
+import { buildCompileArgs } from "./sandbox.js";
 
 const execFileAsync = promisify(execFile);
 
+/**
+ * Compile C source code inside a sandboxed Docker container.
+ *
+ * @param {string} dir - Host directory containing main.c
+ * @throws {{ status: string, stderr: string }} on compilation failure
+ */
 export async function compileC(dir) {
+  const compileCmd =
+    "gcc /app/main.c -O2 -o /app/a.out && chmod +x /app/a.out";
+
+  const dockerArgs = buildCompileArgs({
+    hostDir: dir,
+    image: "runner-c",
+    cmd: ["/bin/sh", "-c", compileCmd],
+  });
+
   try {
-    const compileCmd = "gcc /app/main.c -O2 -o /app/a.out && chmod +x /app/a.out";
-    
-    const dockerArgs = ["run", "--rm"];
-    if (process.env.DISABLE_GVISOR !== "true") {
-      dockerArgs.push("--runtime=runsc");
-    }
-    dockerArgs.push("--network=none");
-    
-    await execFileAsync("docker", [
-      ...dockerArgs,
-      "--cap-drop=ALL",
-      "--security-opt=no-new-privileges",
-      "--tmpfs",
-      "/tmp:rw,nosuid,noexec,size=64m",
-      "-v",
-      `${dir}:/app`,
-      "runner-c",
-      "/bin/sh",
-      "-c",
-      compileCmd,
-    ]);
+    await execFileAsync("docker", dockerArgs);
   } catch (err) {
     throw {
       status: JobStatus.COMPILE_ERROR,

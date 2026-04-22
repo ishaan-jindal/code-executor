@@ -1,13 +1,14 @@
 import "dotenv/config";
 import express from "express";
-import bodyParser from "body-parser";
 import cors from "cors";
 
+import config, { getGVisorStatus } from "./src/config/index.js";
 import { requestLogger } from "./src/infrastructure/logs/requestLogger.js";
-import { info } from "./src/infrastructure/logs/logger.js";
+import { info, warn } from "./src/infrastructure/logs/logger.js";
 import { errorHandler } from "./src/middleware/errorHandler.js";
 import { configureRoutes } from "./src/api/routes/index.js";
 import { startWorker } from "./src/core/workers/executorWorker.js";
+import { redis, redisBlocking } from "./src/infrastructure/redis/redisClient.js";
 
 const app = express();
 
@@ -22,7 +23,7 @@ const corsOptions = {
 };
 app.use(cors(corsOptions));
 app.use(requestLogger);
-app.use(bodyParser.json({ limit: "100kb" }));
+app.use(express.json({ limit: "100kb" }));
 
 // Routes
 configureRoutes(app);
@@ -31,21 +32,45 @@ configureRoutes(app);
 app.use(errorHandler);
 
 // Start Server
-const PORT = Number(process.env.PORT || 4000);
-const server = app.listen(PORT, "0.0.0.0", () => {
-  info(`server started on port ${PORT}`);
+const server = app.listen(config.port, "0.0.0.0", () => {
+  info(`server started on port ${config.port}`);
 
-  const workers = Number(process.env.WORKERS || 2);
-  for (let i = 1; i <= workers; i++) startWorker(i);
+  // Log gVisor status
+  const gvisor = getGVisorStatus();
+  if (gvisor.available) {
+    info(`gVisor (runsc) runtime detected — sandbox hardening ENABLED (${gvisor.reason})`);
+  } else {
+    warn(`gVisor (runsc) not available — ${gvisor.reason}`);
+  }
+
+  // Start workers
+  for (let i = 1; i <= config.workerCount; i++) startWorker(i);
 });
 
 // Graceful shutdown
-const gracefulShutdown = (signal) => {
+const gracefulShutdown = async (signal) => {
   info(`${signal} received, shutting down gracefully`);
-  server.close(() => {
-    info("server closed");
+
+  server.close(async () => {
+    info("HTTP server closed");
+
+    // Disconnect Redis clients
+    try {
+      await redis.quit();
+      await redisBlocking.quit();
+      info("Redis connections closed");
+    } catch {
+      // Ignore Redis disconnect errors during shutdown
+    }
+
     process.exit(0);
   });
+
+  // Force shutdown after 10 seconds
+  setTimeout(() => {
+    warn("Forced shutdown after timeout");
+    process.exit(1);
+  }, 10000);
 };
 
 process.on("SIGTERM", () => gracefulShutdown("SIGTERM"));

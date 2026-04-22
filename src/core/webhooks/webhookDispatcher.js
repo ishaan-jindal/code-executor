@@ -213,10 +213,11 @@ export async function onJobCompleted(userId, job) {
     language: job.language,
     status: job.status,
     created_at: job.created_at,
-    completed_at: Date.now(),
-    output: job.output,
-    error: job.error,
-    compile_error: job.compile_error,
+    completed_at: job.finished_at || Date.now(),
+    stdout: job.stdout ?? "",
+    stderr: job.stderr ?? "",
+    exit_code: job.exit_code ?? null,
+    results: job.results || null,
     metrics: job.metrics,
   };
 

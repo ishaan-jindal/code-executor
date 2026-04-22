@@ -1271,10 +1271,20 @@ All errors follow this format:
 
 ## Rate Limiting
 
-Currently no rate limiting. Implement in production:
-- Per-IP rate limits
-- Per-API-key quotas
-- Queue-based backpressure
+Rate limiting is fully implemented using a sliding window algorithm in Redis.
+
+Limits are applied per-user (based on their JWT or API key) and are tied to their subscription tier:
+- **free**: 10 requests/minute
+- **starter**: 50 requests/minute
+- **professional**: 100 requests/minute
+- **enterprise**: 500 requests/minute
+
+Each authenticated request returns rate limit headers:
+- `X-RateLimit-Limit`: Your total limit
+- `X-RateLimit-Remaining`: Remaining requests this minute
+- `X-RateLimit-Reset`: Unix timestamp for the next minute reset
+
+If the limit is exceeded, the server returns a `429 Too Many Requests` status. Note: `GET` webhook endpoints check the rate limit without decrementing the quota.
 
 ---
 

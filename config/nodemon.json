@@ -1,11 +1,7 @@
 {
   "watch": [
     "server.js",
-    "runner",
-    "limits",
-    "logs",
-    "workers",
-    "jobs"
+    "src/"
   ],
   "ext": "js,json",
   "ignore": [

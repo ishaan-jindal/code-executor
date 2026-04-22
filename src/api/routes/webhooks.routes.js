@@ -1,6 +1,6 @@
 import express from "express";
 import { authenticateJWT } from "../../middleware/authMiddleware.js";
-import { rateLimitByUser } from "../../middleware/rateLimiter.js";
+import { rateLimitByUser, checkRateLimit } from "../../middleware/rateLimiter.js";
 import { ApiResponse } from "../../utils/apiResponse.js";
 import {
   createWebhook,
@@ -50,7 +50,7 @@ router.post("/webhooks", authenticateJWT, rateLimitByUser(), async (req, res, ne
  * GET /webhooks
  * Requires JWT authentication
  */
-router.get("/webhooks", authenticateJWT, rateLimitByUser(), async (req, res, next) => {
+router.get("/webhooks", authenticateJWT, checkRateLimit(), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const webhooks = await getUserWebhooks(userId);
@@ -70,7 +70,7 @@ router.get("/webhooks", authenticateJWT, rateLimitByUser(), async (req, res, nex
  * GET /webhooks/:id
  * Requires JWT authentication
  */
-router.get("/webhooks/:id", authenticateJWT, rateLimitByUser(), async (req, res, next) => {
+router.get("/webhooks/:id", authenticateJWT, checkRateLimit(), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const webhookId = req.params.id;
@@ -102,7 +102,7 @@ router.get("/webhooks/:id", authenticateJWT, rateLimitByUser(), async (req, res,
  * GET /webhooks/:id/deliveries
  * Requires JWT authentication
  */
-router.get("/webhooks/:id/deliveries", authenticateJWT, rateLimitByUser(), async (req, res, next) => {
+router.get("/webhooks/:id/deliveries", authenticateJWT, checkRateLimit(), async (req, res, next) => {
   try {
     const userId = req.user.id;
     const webhookId = req.params.id;

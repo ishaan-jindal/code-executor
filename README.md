@@ -80,13 +80,16 @@ npm test
 ## Testing
 
 ```bash
-# Run all tests (unit + integration)
+# Run all tests (pure unit + Redis unit + integration)
 npm test
 
-# Run only unit tests
+# Run pure unit tests (Node.js built-in test runner, no Redis/Server needed)
+npm run test:unit:pure
+
+# Run all unit tests (including Redis-dependent ones)
 npm run test:unit
 
-# Run only integration tests
+# Run only integration tests (requires Server and Redis)
 npm run test:integration
 
 # Run specific test suites

@@ -1,6 +1,5 @@
 import express from "express";
 import { ApiError } from "../../utils/apiError.js";
-import { ApiResponse } from "../../utils/apiResponse.js";
 import {
   createUser,
   getUserByUsername,
@@ -244,28 +243,15 @@ router.post("/logout-all", authenticateJWT, async (req, res, next) => {
  * GET /auth/me
  * Requires: Authentication
  */
-router.get("/me", async (req, res, next) => {
+router.get("/me", authenticateJWT, async (req, res, next) => {
   try {
-    const authHeader = req.headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      throw new ApiError(401, "No authorization token provided");
-    }
-    
-    const token = authHeader.substring(7);
-    const decoded = verifyToken(token);
-    
-    if (decoded.type !== "access") {
-      throw new ApiError(401, "Invalid token type");
-    }
-    
-    const user = await getUserById(decoded.sub);
+    const user = await getUserById(req.user.id);
     if (!user) {
-      throw new ApiError(404, "User not found");
+      throw new ApiError(404, "User not found", "USER_NOT_FOUND");
     }
-    
+
     const { passwordHash, ...safeUser } = user;
-    
+
     return res.json({
       success: true,
       data: safeUser,

@@ -69,7 +69,7 @@ for (const image of images) {
     checks.push({
       name: `Docker image: ${image}`,
       status: "✗",
-      message: "Not found - run: docker build -f docker/runner-<lang>.Dockerfile -t runner-<lang> .",
+      message: "Not found - run: docker build -f deployment/docker/runner-<lang>.Dockerfile -t runner-<lang> .",
     });
   }
 }
@@ -168,9 +168,9 @@ checkServer().then((serverCheck) => {
 
     if (checks.find((c) => c.name.includes("Docker image"))?.status === "✗") {
       console.log("1. Build Docker images:");
-      console.log("   docker build -f docker/runner-c.Dockerfile -t runner-c .");
-      console.log("   docker build -f docker/runner-py.Dockerfile -t runner-py .");
-      console.log("   docker build -f docker/runner-runtime.Dockerfile -t runner-runtime .\n");
+      console.log("   docker build -f deployment/docker/runner-c.Dockerfile -t runner-c .");
+      console.log("   docker build -f deployment/docker/runner-py.Dockerfile -t runner-py .");
+      console.log("   docker build -f deployment/docker/runner-runtime.Dockerfile -t runner-runtime .\n");
     }
 
     if (checks.find((c) => c.name === "gVisor (runsc)")?.status === "⚠") {
