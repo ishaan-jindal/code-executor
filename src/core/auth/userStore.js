@@ -77,11 +77,35 @@ export async function updateUser(userId, updates) {
   if (!user) {
     throw new Error("User not found");
   }
-  
+
+  // Handle username index update
+  if (updates.username && updates.username !== user.username) {
+    const existingId = await redis.get(`user:username:${updates.username}`);
+    if (existingId && existingId !== userId) {
+      throw new Error("Username already exists");
+    }
+    await redis.del(`user:username:${user.username}`);
+    await redis.set(`user:username:${updates.username}`, userId);
+  }
+
+  // Handle email index update
+  if (updates.email && updates.email !== user.email) {
+    const existingId = await redis.get(`user:email:${updates.email}`);
+    if (existingId && existingId !== userId) {
+      throw new Error("Email already exists");
+    }
+    await redis.del(`user:email:${user.email}`);
+    await redis.set(`user:email:${updates.email}`, userId);
+  }
+
   const updated = { ...user, ...updates };
   await redis.set(`user:${userId}`, JSON.stringify(updated));
   
   return sanitizeUser(updated);
+}
+
+export async function hashPassword(password) {
+  return bcrypt.hash(password, 10);
 }
 
 export async function deleteUser(userId) {

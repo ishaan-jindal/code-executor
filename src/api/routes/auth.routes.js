@@ -6,6 +6,9 @@ import {
   getUserByEmail,
   getUserById,
   validatePassword,
+  updateUser,
+  deleteUser,
+  hashPassword,
 } from "../../core/auth/userStore.js";
 import {
   generateAccessToken,
@@ -255,6 +258,125 @@ router.get("/me", authenticateJWT, async (req, res, next) => {
     return res.json({
       success: true,
       data: safeUser,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Update Profile (Email and/or Username)
+ * PATCH /auth/me
+ * Requires: Authentication
+ */
+router.patch("/me", authenticateJWT, async (req, res, next) => {
+  try {
+    const { email, username } = req.body;
+    
+    if (!email && !username) {
+      throw new ApiError(400, "Provide email or username to update");
+    }
+    
+    const updates = {};
+    
+    if (email) {
+      if (!email.includes("@")) {
+        throw new ApiError(400, "Invalid email format");
+      }
+      updates.email = email;
+    }
+    
+    if (username) {
+      if (username.length < 3) {
+        throw new ApiError(400, "Username must be at least 3 characters");
+      }
+      updates.username = username;
+    }
+    
+    const updated = await updateUser(req.user.id, updates);
+    
+    return res.json({
+      success: true,
+      data: {
+        user: updated,
+        message: "Profile updated successfully"
+      },
+    });
+  } catch (err) {
+    if (err.message.includes("already exists")) {
+      return next(new ApiError(409, err.message));
+    }
+    next(err);
+  }
+});
+
+/**
+ * Change Password
+ * POST /auth/change-password
+ * Requires: Authentication
+ */
+router.post("/change-password", authenticateJWT, async (req, res, next) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      throw new ApiError(400, "Current and new passwords are required");
+    }
+    
+    if (newPassword.length < 8) {
+      throw new ApiError(400, "New password must be at least 8 characters");
+    }
+    
+    const user = await getUserById(req.user.id);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    
+    // Validate current password
+    const isValid = await validatePassword(user, currentPassword);
+    if (!isValid) {
+      throw new ApiError(401, "Invalid current password");
+    }
+    
+    const passwordHash = await hashPassword(newPassword);
+    await updateUser(req.user.id, { passwordHash });
+    
+    // Invalidate all active sessions for security
+    await revokeAllUserRefreshTokens(req.user.id);
+    
+    return res.json({
+      success: true,
+      data: {
+        message: "Password updated successfully. All sessions revoked, please login again."
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * Delete Own Account
+ * DELETE /auth/me
+ * Requires: Authentication
+ */
+router.delete("/me", authenticateJWT, async (req, res, next) => {
+  try {
+    const userId = req.user.id;
+    
+    const user = await getUserById(userId);
+    if (!user) {
+      throw new ApiError(404, "User not found");
+    }
+    
+    await deleteUser(userId);
+    
+    return res.json({
+      success: true,
+      data: {
+        deleted: true,
+        message: "Account deleted successfully",
+      },
     });
   } catch (err) {
     next(err);

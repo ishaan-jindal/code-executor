@@ -347,7 +347,106 @@ curl -X GET http://localhost:4000/auth/me \
 
 ---
 
-### 7. Generate API Key
+### 7. Update Profile
+
+**Endpoint:** `PATCH /auth/me`
+
+**Description:** Update the authenticated user's email or username. Both fields are optional, but at least one must be provided.
+
+**Request Headers:**
+```
+Authorization: Bearer <access-token>
+```
+
+**Request Body:**
+```json
+{
+  "email": "new_email@example.com",
+  "username": "new_username"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "user": { ... },
+    "message": "Profile updated successfully"
+  }
+}
+```
+
+**Error Responses:**
+- `400` - Missing fields, invalid email format, or username too short
+- `401` - Not authenticated
+- `409` - Email or username already exists
+
+---
+
+### 8. Change Password
+
+**Endpoint:** `POST /auth/change-password`
+
+**Description:** Update the authenticated user's password. For security, this will invalidate all active sessions (revokes all refresh tokens). You must login again after this operation.
+
+**Request Headers:**
+```
+Authorization: Bearer <access-token>
+```
+
+**Request Body:**
+```json
+{
+  "currentPassword": "old_password123",
+  "newPassword": "new_secure_password123"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "Password updated successfully. All sessions revoked, please login again."
+  }
+}
+```
+
+**Error Responses:**
+- `400` - Missing passwords or new password too short
+- `401` - Not authenticated or invalid current password
+
+---
+
+### 9. Delete Own Account
+
+**Endpoint:** `DELETE /auth/me`
+
+**Description:** Permanently delete the authenticated user's account and all associated data (API keys, webhooks, etc.).
+
+**Request Headers:**
+```
+Authorization: Bearer <access-token>
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "data": {
+    "deleted": true,
+    "message": "Account deleted successfully"
+  }
+}
+```
+
+**Error Responses:**
+- `401` - Not authenticated
+
+---
+
+### 11. Generate API Key
 
 **Endpoint:** `POST /auth/api-keys`
 
@@ -397,7 +496,7 @@ curl -X POST http://localhost:4000/auth/api-keys \
 
 ---
 
-### 7. List API Keys
+### 12. List API Keys
 
 **Endpoint:** `GET /auth/api-keys`
 
@@ -443,7 +542,7 @@ curl -X GET http://localhost:4000/auth/api-keys \
 
 ---
 
-### 8. Revoke API Key
+### 13. Revoke API Key
 
 **Endpoint:** `DELETE /auth/api-keys/:keyId`
 

@@ -10,6 +10,9 @@ Secure, isolated code execution service with JWT authentication, user-based rate
 - **POST /auth/login** - Login and get JWT tokens
 - **POST /auth/refresh** - Refresh access token
 - **GET /auth/me** - Get current user profile
+- **PATCH /auth/me** - Update email or username
+- **POST /auth/change-password** - Change password
+- **DELETE /auth/me** - Delete own account
 - **POST /auth/api-keys** - Generate API key (JWT required)
 - **GET /auth/api-keys** - List API keys
 - **DELETE /auth/api-keys/:keyId** - Revoke API key
