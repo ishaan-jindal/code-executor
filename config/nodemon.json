@@ -1,9 +1,9 @@
 {
   "watch": [
-    "server.js",
+    "server.ts",
     "src/"
   ],
-  "ext": "js,json",
+  "ext": "ts,json",
   "ignore": [
     "/tmp"
   ],
