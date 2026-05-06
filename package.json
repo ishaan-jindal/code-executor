@@ -2,23 +2,24 @@
   "name": "code-executor",
   "type": "module",
   "scripts": {
-    "start": "node server.js",
-    "dev": "nodemon --config config/nodemon.json server.js",
+    "start": "node --experimental-strip-types server.ts",
+    "dev": "nodemon --config config/nodemon.json --exec \"node --experimental-strip-types\" server.ts",
     "test": "npm run test:unit:pure && npm run test:unit && npm run test:integration",
-    "test:unit:pure": "node --test tests/unit/apiError.test.js tests/unit/apiResponse.test.js tests/unit/outputHandler.test.js tests/unit/config.test.js tests/unit/crypto.test.js tests/unit/metricsCollector.test.js tests/unit/languageRegistry.test.js tests/unit/executionLimiter.test.js tests/unit/sandbox.test.js",
+    "test:unit:pure": "node --experimental-strip-types --test tests/unit/apiError.test.ts tests/unit/apiResponse.test.ts tests/unit/outputHandler.test.ts tests/unit/config.test.ts tests/unit/crypto.test.ts tests/unit/metricsCollector.test.ts tests/unit/languageRegistry.test.ts tests/unit/executionLimiter.test.ts tests/unit/sandbox.test.ts",
     "test:unit": "npm run test:unit:metrics && npm run test:unit:webhooks && npm run test:unit:language && npm run test:unit:apikey",
-    "test:unit:metrics": "node tests/unit/metrics.test.js",
-    "test:unit:webhooks": "node tests/unit/webhooks.test.js",
-    "test:unit:language": "node tests/unit/language-registry.test.js",
-    "test:unit:apikey": "node tests/unit/apikey.test.js",
+    "test:unit:metrics": "node --experimental-strip-types tests/unit/metrics.test.ts",
+    "test:unit:webhooks": "node --experimental-strip-types tests/unit/webhooks.test.ts",
+    "test:unit:language": "node --experimental-strip-types tests/unit/language-registry.test.ts",
+    "test:unit:apikey": "node --experimental-strip-types tests/unit/apikey.test.ts",
     "test:integration": "npm run test:integration:main && npm run test:integration:auth && npm run test:integration:advanced",
-    "test:integration:main": "node tests/integration/integration.test.js",
-    "test:integration:auth": "node tests/integration/auth.test.js",
-    "test:integration:advanced": "node tests/integration/advanced-features.test.js",
-    "seed": "node scripts/seed.js",
-    "seed:admin": "node scripts/seed-admin.js",
-    "diagnose": "node scripts/diagnose.js",
-    "load:test": "k6 run scripts/load-test.js"
+    "test:integration:main": "node --experimental-strip-types tests/integration/integration.test.ts",
+    "test:integration:auth": "node --experimental-strip-types tests/integration/auth.test.ts",
+    "test:integration:advanced": "node --experimental-strip-types tests/integration/advanced-features.test.ts",
+    "seed": "node --experimental-strip-types scripts/seed.ts",
+    "seed:admin": "node --experimental-strip-types scripts/seed-admin.ts",
+    "diagnose": "node --experimental-strip-types scripts/diagnose.ts",
+    "load:test": "k6 run scripts/load-test.ts",
+    "build": "tsc -p tsconfig.json"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -29,6 +30,7 @@
     "jsonwebtoken": "^9.0.2"
   },
   "devDependencies": {
-    "nodemon": "^3.1.11"
+    "nodemon": "^3.1.11",
+    "typescript": "^5.6.3"
   }
 }

@@ -9,15 +9,15 @@ The Code Executor includes comprehensive test suites covering unit tests, integr
 ```
 tests/
 ├── unit/                      # Unit tests for individual modules
-│   ├── metrics.test.js        # Metrics collection tests
-│   ├── webhooks.test.js       # Webhook store tests
-│   ├── language-registry.test.js  # Language metadata tests
-│   └── apikey.test.js         # API key generation/validation tests
+│   ├── metrics.test.ts        # Metrics collection tests
+│   ├── webhooks.test.ts       # Webhook store tests
+│   ├── language-registry.test.ts  # Language metadata tests
+│   └── apikey.test.ts         # API key generation/validation tests
 ├── integration/               # End-to-end API tests
-│   ├── integration.test.js    # Core functionality tests
-│   ├── auth.test.js           # Authentication flow tests
-│   └── advanced-features.test.js  # Code retrieval, webhooks, language info
-└── run-all.js                 # Test runner script
+│   ├── integration.test.ts    # Core functionality tests
+│   ├── auth.test.ts           # Authentication flow tests
+│   └── advanced-features.test.ts  # Code retrieval, webhooks, language info
+└── run-all.ts                 # Test runner script
 ```
 
 ## Running Tests
@@ -80,14 +80,14 @@ npm run test:integration:advanced  # Advanced features (auto-creates API key)
 
 You can also provide your own API key to the advanced features test:
 ```bash
-node tests/integration/advanced-features.test.js sk_live_your_key_here
+node tests/integration/advanced-features.test.ts sk_live_your_key_here
 ```
 
 ### Run Specific Test File
 
 ```bash
-node tests/unit/webhooks.test.js
-node tests/integration/auth.test.js
+node tests/unit/webhooks.test.ts
+node tests/integration/auth.test.ts
 ```
 
 ## Test Suites
@@ -323,7 +323,7 @@ Add console.log statements in tests to see intermediate values.
 ### Run Single Test
 
 ```bash
-node tests/unit/webhooks.test.js
+node tests/unit/webhooks.test.ts
 ```
 
 ### Check Server Logs
