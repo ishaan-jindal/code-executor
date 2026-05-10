@@ -9,12 +9,15 @@ import { runPython } from "./runPython.ts";
 
 export default async function runCode(job) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-"));
+  fs.chmodSync(dir, 0o755);
   const hasMultipleInputs = Array.isArray(job.inputs) && job.inputs.length > 0;
   const inputs = hasMultipleInputs ? job.inputs : [job.stdin];
 
   try {
     if (job.language === "c") {
-      fs.writeFileSync(path.join(dir, "main.c"), job.code);
+      const cPath = path.join(dir, "main.c");
+      fs.writeFileSync(cPath, job.code);
+      fs.chmodSync(cPath, 0o644);
 
       const compileStart = Date.now();
       try {
@@ -54,15 +57,15 @@ export default async function runCode(job) {
 
       const response = hasMultipleInputs
         ? {
-            status: overallStatus,
-            results,
-            stdout: "",
-            stderr: "",
-            exit_code: null,
-          }
+          status: overallStatus,
+          results,
+          stdout: "",
+          stderr: "",
+          exit_code: null,
+        }
         : {
-            ...results[0],
-          };
+          ...results[0],
+        };
 
       return {
         ...response,
@@ -74,7 +77,9 @@ export default async function runCode(job) {
     }
 
     if (job.language === "python") {
-      fs.writeFileSync(path.join(dir, "main.py"), job.code);
+      const pyPath = path.join(dir, "main.py");
+      fs.writeFileSync(pyPath, job.code);
+      fs.chmodSync(pyPath, 0o644);
       const results = [];
       let execTimeTotal = 0;
 
@@ -95,15 +100,15 @@ export default async function runCode(job) {
 
       const response = hasMultipleInputs
         ? {
-            status: overallStatus,
-            results,
-            stdout: "",
-            stderr: "",
-            exit_code: null,
-          }
+          status: overallStatus,
+          results,
+          stdout: "",
+          stderr: "",
+          exit_code: null,
+        }
         : {
-            ...results[0],
-          };
+          ...results[0],
+        };
 
       return {
         ...response,
