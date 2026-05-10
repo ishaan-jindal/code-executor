@@ -87,7 +87,8 @@ export function buildSandboxArgs(options) {
   args.push(`--user=${user || sb.user}`);
 
   // Mount working directory
-  args.push("-v", `${hostDir}:/app`);
+  args.push("-v", `${hostDir}:/app:rw`);
+  args.push("-w", "/app");
 
   // Image and command
   args.push(image, ...cmd);
@@ -130,7 +131,8 @@ export function buildCompileArgs(options) {
   args.push("--tmpfs", `/tmp:rw,nosuid,noexec,size=${sb.compileTmpfsSize}`);
 
   // Mount
-  args.push("-v", `${hostDir}:/app`);
+  args.push("-v", `${hostDir}:/app:rw`);
+  args.push("-w", "/app");
 
   // Image and command
   args.push(image, ...cmd);

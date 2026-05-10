@@ -9,7 +9,7 @@ import { runPython } from "./runPython.ts";
 
 export default async function runCode(job) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-"));
-  fs.chmodSync(dir, 0o755);
+  fs.chmodSync(dir, 0o777);
   const hasMultipleInputs = Array.isArray(job.inputs) && job.inputs.length > 0;
   const inputs = hasMultipleInputs ? job.inputs : [job.stdin];
 
