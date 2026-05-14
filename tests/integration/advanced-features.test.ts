@@ -12,7 +12,18 @@ const BASE_URL = "http://localhost:4000";
 let API_KEY = process.argv[2]; // Pass API key as argument
 
 // Helper to make HTTP requests
-function request(method, path, body = null, headers = {}) {
+type TestResponse = {
+  status?: number;
+  headers: http.IncomingHttpHeaders;
+  body: any;
+};
+
+function request(
+  method: string,
+  path: string,
+  body: unknown = null,
+  headers: Record<string, string> = {}
+): Promise<TestResponse> {
   return new Promise((resolve, reject) => {
     const url = new URL(path, BASE_URL);
     const isHttps = url.protocol === "https:";
@@ -100,7 +111,7 @@ async function test() {
     console.log("1️⃣  Getting all languages...");
     const langRes = await request("GET", "/languages");
     console.log(`   Status: ${langRes.status}`);
-    console.log(`   Languages: ${langRes.body.data.languages.map((l) => l.name).join(", ")}\n`);
+    console.log(`   Languages: ${langRes.body.data.languages.map((l: { name: string }) => l.name).join(", ")}\n`);
 
     // Test 2: Get Specific Language
     console.log("2️⃣  Getting Python language details...");

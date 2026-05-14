@@ -1,6 +1,6 @@
 import { redis } from "../../infrastructure/redis/redisClient.ts";
 import crypto from "crypto";
-import { getUserById } from "./userStore.ts";
+import { getUserById, type SafeUser } from "./userStore.ts";
 
 /**
  * API Key Store - Redis-backed API key management
@@ -15,7 +15,28 @@ import { getUserById } from "./userStore.ts";
  * @param {string} name - Friendly name for the key
  * @returns {Promise<{key: string, keyId: string, name: string, createdAt: number}>}
  */
-export async function generateApiKey(userId, name = "Default API Key") {
+export interface ApiKeyData {
+  keyId: string;
+  userId: string;
+  name: string;
+  hashedKey: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+}
+
+export interface ApiKeyPreview {
+  keyId: string;
+  name: string;
+  createdAt: number;
+  lastUsedAt: number | null;
+}
+
+export async function generateApiKey(userId: string, name = "Default API Key"): Promise<{
+  key: string;
+  keyId: string;
+  name: string;
+  createdAt: number;
+}> {
   const user = await getUserById(userId);
   if (!user) {
     throw new Error("User not found");
@@ -30,7 +51,7 @@ export async function generateApiKey(userId, name = "Default API Key") {
   // Generate unique key ID
   const keyId = `apikey_${Date.now()}_${crypto.randomBytes(8).toString("hex")}`;
   
-  const apiKeyData = {
+  const apiKeyData: ApiKeyData = {
     keyId,
     userId,
     name,
@@ -61,7 +82,7 @@ export async function generateApiKey(userId, name = "Default API Key") {
  * @param {string} rawKey - The raw API key from request
  * @returns {Promise<Object|null>} User object or null
  */
-export async function validateApiKey(rawKey) {
+export async function validateApiKey(rawKey: string): Promise<SafeUser | null> {
   if (!rawKey || !rawKey.startsWith("sk_live_")) {
     return null;
   }
@@ -73,7 +94,7 @@ export async function validateApiKey(rawKey) {
     return null;
   }
 
-  const keyInfo = JSON.parse(apiKeyData);
+  const keyInfo = JSON.parse(apiKeyData) as ApiKeyData;
   
   // Update last used timestamp (async, don't wait)
   redis.set(
@@ -83,7 +104,9 @@ export async function validateApiKey(rawKey) {
 
   // Get and return user
   const user = await getUserById(keyInfo.userId);
-  return user;
+  if (!user) return null;
+  const { passwordHash, ...safeUser } = user;
+  return safeUser;
 }
 
 /**
@@ -91,20 +114,20 @@ export async function validateApiKey(rawKey) {
  * @param {string} userId - User ID
  * @returns {Promise<Array>} Array of API key info
  */
-export async function listApiKeys(userId) {
+export async function listApiKeys(userId: string): Promise<ApiKeyPreview[]> {
   const keyIds = await redis.smembers(`user:${userId}:apikeys`);
   
   if (!keyIds || keyIds.length === 0) {
     return [];
   }
 
-  const keys = [];
+  const keys: ApiKeyPreview[] = [];
   for (const keyId of keyIds) {
     const hashedKey = await redis.get(`apikeyid:${keyId}`);
     if (hashedKey) {
       const apiKeyData = await redis.get(`apikey:${hashedKey}`);
       if (apiKeyData) {
-        const keyInfo = JSON.parse(apiKeyData);
+        const keyInfo = JSON.parse(apiKeyData) as ApiKeyData;
         keys.push({
           keyId: keyInfo.keyId,
           name: keyInfo.name,
@@ -125,7 +148,7 @@ export async function listApiKeys(userId) {
  * @param {string} keyId - Key ID to revoke
  * @returns {Promise<boolean>} True if revoked
  */
-export async function revokeApiKey(userId, keyId) {
+export async function revokeApiKey(userId: string, keyId: string): Promise<boolean> {
   // Get hashed key from key ID
   const hashedKey = await redis.get(`apikeyid:${keyId}`);
   if (!hashedKey) {
@@ -138,7 +161,7 @@ export async function revokeApiKey(userId, keyId) {
     return false;
   }
 
-  const keyInfo = JSON.parse(apiKeyData);
+  const keyInfo = JSON.parse(apiKeyData) as ApiKeyData;
   if (keyInfo.userId !== userId) {
     throw new Error("Unauthorized: Key does not belong to user");
   }
@@ -156,6 +179,6 @@ export async function revokeApiKey(userId, keyId) {
  * @param {string} rawKey - Raw API key
  * @returns {string} Hashed key
  */
-function hashApiKey(rawKey) {
+function hashApiKey(rawKey: string): string {
   return crypto.createHash("sha256").update(rawKey).digest("hex");
 }

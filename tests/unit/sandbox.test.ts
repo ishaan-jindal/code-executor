@@ -145,7 +145,7 @@ describe("Sandbox Builder", () => {
       });
       const vIdx = args.indexOf("-v");
       assert.ok(vIdx >= 0);
-      assert.equal(args[vIdx + 1], "/my/host/dir:/app");
+      assert.equal(args[vIdx + 1], "/my/host/dir:/app:rw");
     });
 
     it("should end with image and command", () => {

@@ -14,10 +14,21 @@
 
 const BASE_URL = process.env.BASE_URL || "http://localhost:4000";
 
+type TestResponse = {
+  status: number;
+  headers: Record<string, string>;
+  data: any;
+};
+
 // Helper to make HTTP requests
-async function request(method, path, body = null, headers = {}) {
+async function request(
+  method: string,
+  path: string,
+  body: unknown = null,
+  headers: Record<string, string> = {}
+): Promise<TestResponse> {
   const url = `${BASE_URL}${path}`;
-  const options = {
+  const options: RequestInit = {
     method,
     headers: {
       "Content-Type": "application/json",
@@ -30,7 +41,7 @@ async function request(method, path, body = null, headers = {}) {
   }
 
   const response = await fetch(url, options);
-  const data = await response.json();
+  const data = await response.json() as any;
 
   return {
     status: response.status,
@@ -48,7 +59,9 @@ const colors = {
   reset: "\x1b[0m",
 };
 
-function log(message, color = "reset") {
+type Color = keyof typeof colors;
+
+function log(message: string, color: Color = "reset"): void {
   console.log(`${colors[color]}${message}${colors.reset}`);
 }
 
@@ -59,7 +72,7 @@ async function testAuth() {
   const testEmail = `test_${Date.now()}@example.com`;
   const testPassword = "SecurePass123!";
 
-  let accessToken = null;
+  let accessToken: string | null = null;
   let refreshToken = null;
   let jobId = null;
 

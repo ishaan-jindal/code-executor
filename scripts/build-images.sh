@@ -24,6 +24,12 @@ docker build -f deployment/docker/runner-runtime.Dockerfile -t runner-runtime .
 echo "✅ runner-runtime built"
 echo ""
 
+# Build Java image
+echo "Building runner-java (Java 21)..."
+docker build -f deployment/docker/runner-java.Dockerfile -t runner-java .
+echo "✅ runner-java built"
+echo ""
+
 echo "🎉 All Docker images built successfully!"
 echo ""
 echo "Images:"

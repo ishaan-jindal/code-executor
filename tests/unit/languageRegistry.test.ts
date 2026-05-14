@@ -78,8 +78,8 @@ describe("LanguageRegistry", () => {
     });
 
     it("should return null for unsupported languages", () => {
-      assert.equal(getLanguage("java"), null);
       assert.equal(getLanguage("rust"), null);
+      assert.equal(getLanguage("golang"), null);
       assert.equal(getLanguage(""), null);
     });
 
@@ -93,7 +93,8 @@ describe("LanguageRegistry", () => {
     it("should be an alias for getLanguage", () => {
       assert.equal(getLanguageById("python")?.id, "python");
       assert.equal(getLanguageById("py")?.id, "python");
-      assert.equal(getLanguageById("java"), null);
+      assert.equal(getLanguageById("java")?.id, "java");
+      assert.equal(getLanguageById("rust"), null);
     });
   });
 
@@ -101,16 +102,18 @@ describe("LanguageRegistry", () => {
     it("should return true for supported languages", () => {
       assert.equal(isLanguageSupported("python"), true);
       assert.equal(isLanguageSupported("c"), true);
+      assert.equal(isLanguageSupported("java"), true);
     });
 
     it("should return true for aliases", () => {
       assert.equal(isLanguageSupported("py"), true);
       assert.equal(isLanguageSupported("gcc"), true);
+      assert.equal(isLanguageSupported("java21"), true);
     });
 
     it("should return false for unsupported languages", () => {
-      assert.equal(isLanguageSupported("java"), false);
       assert.equal(isLanguageSupported("ruby"), false);
+      assert.equal(isLanguageSupported("golang"), false);
     });
   });
 
@@ -127,6 +130,7 @@ describe("LanguageRegistry", () => {
 
     it("C should have compiler_flags_allowed", () => {
       const c = getLanguage("c");
+      assert.ok(c);
       assert.ok(c.compiler_flags_default);
       assert.ok(Array.isArray(c.compiler_flags_allowed));
       assert.ok(c.compiler_flags_allowed.length > 0);
@@ -134,6 +138,7 @@ describe("LanguageRegistry", () => {
 
     it("Python should have zero compile_time_ms", () => {
       const python = getLanguage("python");
+      assert.ok(python);
       assert.equal(python.compile_time_ms, 0);
     });
 

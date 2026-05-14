@@ -1,3 +1,4 @@
+import type { RequestHandler } from "express";
 import { ApiError } from "../utils/apiError.ts";
 import { warn } from "../infrastructure/logs/logger.ts";
 
@@ -11,7 +12,7 @@ import { warn } from "../infrastructure/logs/logger.ts";
  * @param {Object} res - Express response
  * @param {Function} next - Express next function
  */
-export function requireAdmin(req, res, next) {
+export const requireAdmin: RequestHandler = (req, res, next) => {
   try {
     // Must be authenticated first (authenticateJWT should be before this)
     if (!req.user || !req.user.id) {
@@ -37,4 +38,4 @@ export function requireAdmin(req, res, next) {
   } catch (err) {
     next(err);
   }
-}
+};

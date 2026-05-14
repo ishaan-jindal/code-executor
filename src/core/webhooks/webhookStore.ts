@@ -4,7 +4,35 @@ export const WEBHOOK_STATUS = {
   ACTIVE: "active",
   INACTIVE: "inactive",
   FAILED: "failed",
-};
+} as const;
+
+export type WebhookStatus = (typeof WEBHOOK_STATUS)[keyof typeof WEBHOOK_STATUS];
+
+export interface WebhookOptions {
+  events?: string[];
+  secret?: string | null;
+}
+
+export interface WebhookRecord {
+  id: string;
+  userId: string;
+  url: string;
+  events: string[];
+  status: WebhookStatus;
+  secret: string | null;
+  created_at: number;
+  updated_at: number;
+  failed_attempts: number;
+}
+
+export interface WebhookDelivery {
+  success: boolean;
+  status?: number;
+  attempts: number;
+  response_body?: string;
+  error?: string;
+  timestamp?: number;
+}
 
 /**
  * Scan for Redis keys matching a pattern.
@@ -13,8 +41,8 @@ export const WEBHOOK_STATUS = {
  * @param {string} pattern - Redis key pattern
  * @returns {Promise<string[]>} Matching keys
  */
-async function scanKeys(pattern) {
-  const keys = [];
+async function scanKeys(pattern: string): Promise<string[]> {
+  const keys: string[] = [];
   let cursor = "0";
   do {
     const [newCursor, foundKeys] = await redis.scan(
@@ -37,7 +65,7 @@ async function scanKeys(pattern) {
  * @param {Object} options - Events to subscribe to, secret for HMAC
  * @returns {Promise<Object>} - Created webhook
  */
-export async function createWebhook(userId, url, options = {}) {
+export async function createWebhook(userId: string, url: string, options: WebhookOptions = {}): Promise<WebhookRecord> {
   if (!url || typeof url !== "string") {
     throw new Error("Invalid webhook URL");
   }
@@ -75,9 +103,9 @@ export async function createWebhook(userId, url, options = {}) {
  * @param {string} webhookId - Webhook ID
  * @returns {Promise<Object|null>} - Webhook object or null
  */
-export async function getWebhook(webhookId) {
+export async function getWebhook(webhookId: string): Promise<WebhookRecord | null> {
   const data = await redis.get(`webhook:${webhookId}`);
-  return data ? JSON.parse(data) : null;
+  return data ? JSON.parse(data) as WebhookRecord : null;
 }
 
 /**
@@ -86,7 +114,7 @@ export async function getWebhook(webhookId) {
  * @param {string} webhookId - Webhook ID to delete
  * @returns {Promise<boolean>} - True if deleted
  */
-export async function deleteWebhook(userId, webhookId) {
+export async function deleteWebhook(userId: string, webhookId: string): Promise<boolean> {
   const webhook = await getWebhook(webhookId);
 
   if (!webhook) {
@@ -110,7 +138,7 @@ export async function deleteWebhook(userId, webhookId) {
  * @param {string} userId - User ID
  * @returns {Promise<Array>} - Array of webhooks
  */
-export async function getUserWebhooks(userId) {
+export async function getUserWebhooks(userId: string): Promise<WebhookRecord[]> {
   const pattern = `user:${userId}:webhooks:*`;
   const keys = await scanKeys(pattern);
 
@@ -118,10 +146,10 @@ export async function getUserWebhooks(userId) {
     return [];
   }
 
-  const webhooks = [];
+  const webhooks: WebhookRecord[] = [];
   for (const key of keys) {
     const webhookId = key.split(":").pop();
-    const webhook = await getWebhook(webhookId);
+    const webhook = webhookId ? await getWebhook(webhookId) : null;
     if (webhook) {
       webhooks.push(webhook);
     }
@@ -135,7 +163,7 @@ export async function getUserWebhooks(userId) {
  * @param {string} webhookId - Webhook ID
  * @param {Object} delivery - Delivery record
  */
-export async function recordWebhookDelivery(webhookId, delivery) {
+export async function recordWebhookDelivery(webhookId: string, delivery: WebhookDelivery): Promise<void> {
   const key = `webhook:${webhookId}:deliveries`;
   const deliveryId = `${Date.now()}_${Math.random().toString(36).substring(2, 11)}`;
 
@@ -169,7 +197,7 @@ export async function recordWebhookDelivery(webhookId, delivery) {
  * @param {number} limit - Max deliveries to return
  * @returns {Promise<Array>} - Delivery records
  */
-export async function getWebhookDeliveries(webhookId, limit = 50) {
+export async function getWebhookDeliveries(webhookId: string, limit = 50): Promise<WebhookDelivery[]> {
   const pattern = `webhook:${webhookId}:deliveries:*`;
   const keys = await scanKeys(pattern);
 
@@ -177,13 +205,13 @@ export async function getWebhookDeliveries(webhookId, limit = 50) {
     return [];
   }
 
-  const deliveries = [];
+  const deliveries: WebhookDelivery[] = [];
   const sorted = keys.sort().reverse().slice(0, limit);
 
   for (const key of sorted) {
     const data = await redis.get(key);
     if (data) {
-      deliveries.push(JSON.parse(data));
+      deliveries.push(JSON.parse(data) as WebhookDelivery);
     }
   }
 
@@ -195,7 +223,7 @@ export async function getWebhookDeliveries(webhookId, limit = 50) {
  * @param {string} webhookId - Webhook ID
  * @param {string} status - New status
  */
-export async function updateWebhookStatus(webhookId, status) {
+export async function updateWebhookStatus(webhookId: string, status: WebhookStatus): Promise<void> {
   const webhook = await getWebhook(webhookId);
   if (!webhook) return;
 
@@ -210,7 +238,7 @@ export async function updateWebhookStatus(webhookId, status) {
  * Increment failed attempts for a webhook
  * @param {string} webhookId - Webhook ID
  */
-export async function incrementFailedAttempts(webhookId) {
+export async function incrementFailedAttempts(webhookId: string): Promise<void> {
   const webhook = await getWebhook(webhookId);
   if (!webhook) return;
 
@@ -231,7 +259,7 @@ export async function incrementFailedAttempts(webhookId) {
  * Reset failed attempts for a webhook
  * @param {string} webhookId - Webhook ID
  */
-export async function resetFailedAttempts(webhookId) {
+export async function resetFailedAttempts(webhookId: string): Promise<void> {
   const webhook = await getWebhook(webhookId);
   if (!webhook) return;
 

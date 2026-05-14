@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { MetricsCollector } from "../../src/infrastructure/metrics/metricsCollector.ts";
 
 describe("MetricsCollector", () => {
-  let collector;
+  let collector: MetricsCollector;
 
   beforeEach(() => {
     collector = new MetricsCollector();

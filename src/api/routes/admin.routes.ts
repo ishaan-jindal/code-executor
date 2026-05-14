@@ -1,7 +1,7 @@
 import express from "express";
 import { authenticateJWT } from "../../middleware/authMiddleware.ts";
 import { requireAdmin } from "../../middleware/adminMiddleware.ts";
-import { getUserById, updateUser, getAllUsers, deleteUser } from "../../core/auth/userStore.ts";
+import { getUserById, updateUser, getAllUsers, deleteUser, type UserTier } from "../../core/auth/userStore.ts";
 import { ApiError } from "../../utils/apiError.ts";
 import { info, warn } from "../../infrastructure/logs/logger.ts";
 
@@ -23,13 +23,14 @@ router.post("/users/:userId/upgrade", authenticateJWT, requireAdmin, async (req,
     const adminId = req.user.id;
 
     // Validate tier
-    const validTiers = ["free", "starter", "professional", "enterprise"];
+    const validTiers = ["free", "starter", "professional", "enterprise"] as const;
     if (!newTier || !validTiers.includes(newTier)) {
       throw new ApiError(
         400,
         `Invalid tier. Must be one of: ${validTiers.join(", ")}`
       );
     }
+    const tier = newTier as UserTier;
 
     // Get user
     const user = await getUserById(userId);
@@ -38,18 +39,18 @@ router.post("/users/:userId/upgrade", authenticateJWT, requireAdmin, async (req,
     }
 
     // Calculate new rate limit for tier
-    const tierRateLimits = {
+    const tierRateLimits: Record<UserTier, number> = {
       free: 10,
       starter: 50,
       professional: 100,
       enterprise: 500,
     };
-    const newRateLimit = tierRateLimits[newTier];
+    const newRateLimit = tierRateLimits[tier];
 
     // Update user tier and rate limit
     const oldTier = user.tier;
     const updated = await updateUser(userId, { 
-      tier: newTier,
+      tier,
       rateLimit: newRateLimit 
     });
 
@@ -245,8 +246,8 @@ router.get("/stats", authenticateJWT, requireAdmin, async (req, res, next) => {
  */
 router.get("/users", authenticateJWT, requireAdmin, async (req, res, next) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100); // Max 100 per page
-    const offset = parseInt(req.query.offset) || 0;
+    const limit = Math.min(parseInt(req.query.limit ?? "50", 10) || 50, 100); // Max 100 per page
+    const offset = parseInt(req.query.offset ?? "0", 10) || 0;
     const adminId = req.user.id;
 
     const result = await getAllUsers(limit, offset);

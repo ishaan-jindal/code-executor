@@ -94,6 +94,7 @@ async function runTests() {
     console.log("Test 4: Update webhook status");
     await updateWebhookStatus(webhook1.id, WEBHOOK_STATUS.INACTIVE);
     const updated = await getWebhook(webhook1.id);
+    if (!updated) throw new Error("Expected updated webhook");
 
     if (updated.status === WEBHOOK_STATUS.INACTIVE) {
       console.log("✓ Webhook status updated successfully\n");
@@ -108,6 +109,7 @@ async function runTests() {
     await incrementFailedAttempts(webhook1.id);
     await incrementFailedAttempts(webhook1.id);
     const afterFails = await getWebhook(webhook1.id);
+    if (!afterFails) throw new Error("Expected webhook after failed attempts");
 
     if (afterFails.failed_attempts === 2) {
       console.log("✓ Failed attempts incremented correctly\n");
@@ -121,6 +123,7 @@ async function runTests() {
     console.log("Test 6: Reset failed attempts");
     await resetFailedAttempts(webhook1.id);
     const afterReset = await getWebhook(webhook1.id);
+    if (!afterReset) throw new Error("Expected webhook after reset");
 
     if (afterReset.failed_attempts === 0 && afterReset.status === WEBHOOK_STATUS.ACTIVE) {
       console.log("✓ Failed attempts reset successfully\n");
@@ -187,6 +190,7 @@ async function runTests() {
     }
 
     const autoDisabled = await getWebhook(webhook3.id);
+    if (!autoDisabled) throw new Error("Expected auto-disabled webhook");
 
     if (autoDisabled.status === WEBHOOK_STATUS.FAILED && autoDisabled.failed_attempts === 10) {
       console.log("✓ Webhook auto-disabled after 10 failures\n");

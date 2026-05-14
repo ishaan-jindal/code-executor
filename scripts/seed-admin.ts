@@ -20,11 +20,13 @@ const colors = {
   reset: "\x1b[0m",
 };
 
-function log(msg, color = "reset") {
+type Color = keyof typeof colors;
+
+function log(msg: string, color: Color = "reset"): void {
   console.log(`${colors[color]}${msg}${colors.reset}`);
 }
 
-async function seedAdmin() {
+async function seedAdmin(): Promise<void> {
   try {
     log("\n🛡️  Admin Account Seeding Started\n", "blue");
 

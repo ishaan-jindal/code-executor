@@ -7,10 +7,13 @@
  * Usage: node scripts/seed.js
  */
 
-import { createUser, getUserByUsername } from "../src/core/auth/userStore.ts";
+import { createUser, getUserByUsername, type CreateUserInput, type UserTier } from "../src/core/auth/userStore.ts";
 import { redis } from "../src/infrastructure/redis/redisClient.ts";
 
-const testUsers = [
+type Color = "green" | "blue" | "yellow" | "red" | "reset" | "";
+type SeedUser = CreateUserInput & { tier: UserTier; role: "admin" | "user"; description: string };
+
+const testUsers: SeedUser[] = [
   {
     username: "admin",
     email: "admin@localhost",
@@ -61,11 +64,11 @@ const colors = {
   reset: "\x1b[0m",
 };
 
-function log(msg, color = "reset") {
-  console.log(`${colors[color]}${msg}${colors.reset}`);
+function log(msg: string, color: Color = "reset"): void {
+  console.log(`${color ? colors[color] : ""}${msg}${colors.reset}`);
 }
 
-async function seed() {
+async function seed(): Promise<void> {
   try {
     log("\n🌱 Database Seeding Started\n", "blue");
 
@@ -123,7 +126,7 @@ async function seed() {
     log("\nLogin with any of these credentials:", "yellow");
     testUsers.forEach((user) => {
       if (!user.role || user.role === "user") {
-        const limits = {
+        const limits: Record<UserTier, string> = {
           free: "10",
           starter: "50",
           professional: "100",

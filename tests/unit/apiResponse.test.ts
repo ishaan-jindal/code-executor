@@ -80,6 +80,7 @@ describe("ApiResponse", () => {
         exit_code: 0,
       };
       const result = ApiResponse.jobResponse(job, true);
+      assert.ok(result.results);
       assert.equal(result.results.length, 1);
       assert.equal(result.results[0].stdout, "Hello\n");
       assert.equal(result.results[0].exit_code, 0);
@@ -88,6 +89,7 @@ describe("ApiResponse", () => {
     it("should handle undefined exit_code as null", () => {
       const job = { id: "abc-123", status: "RUNNING" };
       const result = ApiResponse.jobResponse(job, true);
+      assert.ok(result.results);
       assert.equal(result.results[0].exit_code, null);
     });
   });

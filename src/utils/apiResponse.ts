@@ -28,7 +28,15 @@ export class ApiResponse {
     return response;
   }
 
-  static jobResponse(job: Record<string, any>, includeOutput = false): LegacyJobResponse {
+  static jobResponse(job: {
+    id: string;
+    status: string;
+    metrics?: Record<string, unknown>;
+    results?: LegacyJobResult[];
+    stdout?: string;
+    stderr?: string;
+    exit_code?: number | null;
+  }, includeOutput = false): LegacyJobResponse {
     const response: LegacyJobResponse = { job_id: String(job.id), status: String(job.status) };
     if (job.metrics) response.metrics = job.metrics;
 

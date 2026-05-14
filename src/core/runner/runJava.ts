@@ -4,22 +4,39 @@ import { truncateOutput, MAX_OUTPUT_SIZE } from "../../utils/outputHandler.ts";
 import config from "../../config/index.ts";
 
 /**
- * Execute a command inside a Docker container with stdin support,
- * output truncation, and timeout enforcement.
+ * Compile and run Java code inside a single Docker container.
  *
- * This is the shared execution core used by both Python and C binary runners.
+ * Uses spawn for proper stdin/stdout handling with timeout enforcement.
  *
- * @param {string[]} dockerArgs - Full docker run arguments
- * @param {string|null} stdin   - stdin data to pipe into the container
- * @param {string} containerId  - Container name (for cleanup on timeout)
+ * @param {string} dir - Host directory containing Main.java
+ * @param {string|null} input - stdin data to pipe to the program
  * @returns {Promise<{status: string, stdout: string, stderr: string, exit_code: number|null}>}
  */
-export function executeContainer(
-  dockerArgs: string[],
-  stdin: string | number | null | undefined,
-  containerId: string
-): Promise<ExecutionResult> {
-  return new Promise((resolve, reject) => {
+export function runJava(dir: string, input: string | number | null | undefined): Promise<ExecutionResult> {
+  const runCmd = `javac /app/Main.java && java -cp /app Main`;
+
+  const dockerArgs = [
+    "run",
+    "--rm",
+    "-i",  // Enable stdin
+    "--network=none",
+    "--memory=128m",
+    "--cpus=1",
+    "--pids-limit=100",
+    "--cap-drop=NET_RAW",
+    "--cap-drop=NET_ADMIN",
+    "--security-opt=no-new-privileges=true",
+    "-v",
+    `${dir}:/app:rw`,
+    "-w",
+    "/app",
+    "runner-java",
+    "/bin/sh",
+    "-c",
+    runCmd,
+  ];
+
+  return new Promise((resolve) => {
     const child = spawn("docker", dockerArgs, {
       stdio: ["pipe", "pipe", "pipe"],
     });
@@ -57,17 +74,17 @@ export function executeContainer(
       stderr += chunk;
     });
 
-    // Pipe stdin
-    const input = stdin == null ? "" : String(stdin);
-    child.stdin.end(input);
+    const inputData = input == null ? "" : String(input);
+    child.stdin.end(inputData);
 
     // Timeout enforcement
+    // Java needs more time for JVM startup + compilation + execution
+    const javaTimeout = 8000; // 8 seconds for Java (vs 2s for Python/C)
     const killTimer = setTimeout(() => {
-      // Kill the container first (ensures cleanup even if docker process hangs)
       try {
-        spawnSync("docker", ["kill", containerId], { timeout: 2000 });
+        spawnSync("docker", ["kill", "$(docker ps -q)"], { timeout: 2000 });
       } catch {
-        // ignore — container may already be dead
+        // ignore
       }
 
       try {
@@ -82,11 +99,18 @@ export function executeContainer(
         stderr: truncateOutput(stderr),
         exit_code: null,
       });
-    }, config.execTimeoutMs);
+    }, javaTimeout);
 
     child.on("close", (code) => {
+      // Determine if it's a compile error or runtime error
+      const isCompileError =
+        stderr?.includes("error:") &&
+        (stderr?.includes("cannot find symbol") ||
+          stderr?.includes("';' expected") ||
+          stderr?.includes("class declaration expected"));
+
       done({
-        status: code === 0 ? JobStatus.ACCEPTED : JobStatus.RUNTIME_ERROR,
+        status: code === 0 ? JobStatus.ACCEPTED : isCompileError ? JobStatus.COMPILE_ERROR : JobStatus.RUNTIME_ERROR,
         stdout: truncateOutput(stdout),
         stderr: truncateOutput(stderr),
         exit_code: code,
@@ -97,7 +121,12 @@ export function executeContainer(
       if (finished) return;
       finished = true;
       clearTimeout(killTimer);
-      reject(err);
+      resolve({
+        status: JobStatus.RUNTIME_ERROR,
+        stdout: "",
+        stderr: err.message,
+        exit_code: null,
+      });
     });
   });
 }

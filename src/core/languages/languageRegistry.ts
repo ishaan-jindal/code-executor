@@ -2,7 +2,31 @@
  * Language Registry - Information about supported languages
  */
 
-export const LANGUAGES = {
+export interface LanguageFeatures {
+  stdin: boolean;
+  file_io: boolean;
+  networking: boolean;
+  subprocess: boolean;
+}
+
+export interface LanguageInfo {
+  [key: string]: unknown;
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  aliases: string[];
+  compile_time_ms: number;
+  memory_limit_mb: number;
+  cpu_limit: number;
+  timeout_ms: number;
+  features: LanguageFeatures;
+  example: string;
+  compiler_flags_default?: string;
+  compiler_flags_allowed?: string[];
+}
+
+export const LANGUAGES: Record<string, LanguageInfo> = {
   python: {
     id: "python",
     name: "Python",
@@ -45,40 +69,58 @@ int main() {
   return 0;
 }`,
   },
+  java: {
+    id: "java",
+    name: "Java",
+    version: "21",
+    description: "Java 21 with standard libraries",
+    aliases: ["java", "java21"],
+    compile_time_ms: 0,
+    memory_limit_mb: 128,
+    cpu_limit: 1,
+    timeout_ms: 8000,
+    features: {
+      stdin: true,
+      file_io: false,
+      networking: false,
+      subprocess: false,
+    },
+    example: `public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }\n}\n`,
+  },
 };
 
 /**
  * Get language by ID or alias
  */
-export function getLanguage(lang) {
+export function getLanguage(lang: string | null | undefined): LanguageInfo | null {
   const normalizedLang = (lang || "").toLowerCase();
-  
+
   // Direct match
   if (LANGUAGES[normalizedLang]) {
     return LANGUAGES[normalizedLang];
   }
-  
+
   // Check aliases
   for (const [id, langInfo] of Object.entries(LANGUAGES)) {
     if (langInfo.aliases && langInfo.aliases.includes(normalizedLang)) {
       return langInfo;
     }
   }
-  
+
   return null;
 }
 
 /**
  * Get all supported languages
  */
-export function getAllLanguages() {
+export function getAllLanguages(): LanguageInfo[] {
   return Object.values(LANGUAGES);
 }
 
 /**
  * Validate language is supported
  */
-export function isLanguageSupported(lang) {
+export function isLanguageSupported(lang: string | null | undefined): boolean {
   return getLanguage(lang) !== null;
 }
 
@@ -86,6 +128,6 @@ export function isLanguageSupported(lang) {
  * Get language by ID or alias
  * Alias for getLanguage() for compatibility
  */
-export function getLanguageById(lang) {
+export function getLanguageById(lang: string | null | undefined): LanguageInfo | null {
   return getLanguage(lang);
 }
