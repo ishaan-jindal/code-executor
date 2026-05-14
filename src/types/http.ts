@@ -13,7 +13,7 @@ export interface AuthUser {
 }
 
 export interface AuthenticatedRequest extends Request {
-  user?: AuthUser;
+  user: AuthUser;
   apiKey?: string;
 }
 

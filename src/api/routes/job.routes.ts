@@ -6,7 +6,7 @@ import { ApiResponse } from "../../utils/apiResponse.ts";
 import { metrics } from "../../infrastructure/metrics/metricsCollector.ts";
 import { createJob, getJob, addJobToUserIndex, getUserJobIds, getUserJobCount } from "../../core/jobs/jobStore.ts";
 import { enqueueJob } from "../../core/jobs/jobQueue.ts";
-import { JobStatus } from "../../core/jobs/jobTypes.ts";
+import { JobStatus, type JobRecord } from "../../core/jobs/jobTypes.ts";
 import { authenticateJWT } from "../../middleware/authMiddleware.ts";
 import { rateLimitByUser, checkRateLimit } from "../../middleware/rateLimiter.ts";
 import { getAllLanguages, getLanguageById } from "../../core/languages/languageRegistry.ts";
@@ -196,8 +196,8 @@ router.get("/jobs", authenticateJWT, checkRateLimit(), async (req, res, next) =>
     const userId = req.user.id;
     const { status, language, limit = 50, offset = 0, from, to } = req.query;
 
-    const pageLimit = Math.min(parseInt(limit) || 50, 100);
-    const pageOffset = parseInt(offset) || 0;
+    const pageLimit = Math.min(parseInt(String(limit), 10) || 50, 100);
+    const pageOffset = parseInt(String(offset), 10) || 0;
 
     const [jobIds, total] = await Promise.all([
       getUserJobIds(userId, pageOffset, pageLimit),
@@ -207,14 +207,15 @@ router.get("/jobs", authenticateJWT, checkRateLimit(), async (req, res, next) =>
     // Fetch all jobs in parallel
     const jobs = (
       await Promise.all(jobIds.map((id) => getJob(id)))
-    ).filter(Boolean); // filter nulls (expired jobs)
+    ).filter((job): job is JobRecord => job !== null); // filter expired jobs
 
     // Apply filters in-memory
     const filtered = jobs.filter((job) => {
       if (status && job.status !== status) return false;
       if (language && job.language !== language) return false;
-      if (from && job.created_at < parseInt(from)) return false;
-      if (to && job.created_at > parseInt(to)) return false;
+      const createdAt = job.created_at ?? job.createdAt ?? 0;
+      if (from && createdAt < parseInt(from, 10)) return false;
+      if (to && createdAt > parseInt(to, 10)) return false;
       return true;
     });
 
@@ -222,7 +223,7 @@ router.get("/jobs", authenticateJWT, checkRateLimit(), async (req, res, next) =>
       success: true,
       data: {
         jobs: filtered,
-        total: parseInt(total),
+        total,
         limit: pageLimit,
         offset: pageOffset,
         filters: {

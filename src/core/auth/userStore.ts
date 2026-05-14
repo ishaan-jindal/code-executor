@@ -5,8 +5,36 @@ import bcrypt from "bcryptjs";
  * User Store - Redis-backed user management
  */
 
-export async function createUser(userData) {
+export type UserTier = "free" | "starter" | "professional" | "enterprise";
+export type UserRole = "user" | "admin";
+
+export interface CreateUserInput {
+  username: string;
+  email: string;
+  password: string;
+  tier?: UserTier | string;
+  role?: UserRole | string;
+  description?: string;
+}
+
+export interface StoredUser {
+  id: string;
+  username: string;
+  email: string;
+  passwordHash: string;
+  tier: UserTier;
+  role: UserRole;
+  rateLimit: number;
+  createdAt: number;
+}
+
+export type SafeUser = Omit<StoredUser, "passwordHash">;
+export type UserUpdate = Partial<StoredUser>;
+
+export async function createUser(userData: CreateUserInput): Promise<SafeUser> {
   const { username, email, password, tier = "free", role = "user" } = userData;
+  const normalizedTier = isUserTier(tier) ? tier : "free";
+  const normalizedRole = isUserRole(role) ? role : "user";
   
   // Check if user exists
   const existing = await redis.get(`user:username:${username}`);
@@ -29,9 +57,9 @@ export async function createUser(userData) {
     username,
     email,
     passwordHash,
-    tier,
-    role,
-    rateLimit: getTierRateLimit(tier),
+    tier: normalizedTier,
+    role: normalizedRole,
+    rateLimit: getTierRateLimit(normalizedTier),
     createdAt: Date.now(),
   };
   
@@ -43,36 +71,36 @@ export async function createUser(userData) {
   return sanitizeUser(user);
 }
 
-export async function getUserById(userId) {
+export async function getUserById(userId: string): Promise<StoredUser | null> {
   const data = await redis.get(`user:${userId}`);
   if (!data) return null;
   
   try {
-    return JSON.parse(data);
+    return JSON.parse(data) as StoredUser;
   } catch (e) {
     return null;
   }
 }
 
-export async function getUserByUsername(username) {
+export async function getUserByUsername(username: string): Promise<StoredUser | null> {
   const userId = await redis.get(`user:username:${username}`);
   if (!userId) return null;
   
   return getUserById(userId);
 }
 
-export async function getUserByEmail(email) {
+export async function getUserByEmail(email: string): Promise<StoredUser | null> {
   const userId = await redis.get(`user:email:${email}`);
   if (!userId) return null;
   
   return getUserById(userId);
 }
 
-export async function validatePassword(user, password) {
+export async function validatePassword(user: StoredUser, password: string): Promise<boolean> {
   return bcrypt.compare(password, user.passwordHash);
 }
 
-export async function updateUser(userId, updates) {
+export async function updateUser(userId: string, updates: UserUpdate): Promise<SafeUser> {
   const user = await getUserById(userId);
   if (!user) {
     throw new Error("User not found");
@@ -104,11 +132,11 @@ export async function updateUser(userId, updates) {
   return sanitizeUser(updated);
 }
 
-export async function hashPassword(password) {
+export async function hashPassword(password: string): Promise<string> {
   return bcrypt.hash(password, 10);
 }
 
-export async function deleteUser(userId) {
+export async function deleteUser(userId: string): Promise<boolean> {
   const user = await getUserById(userId);
   if (!user) {
     return false;
@@ -128,7 +156,7 @@ export async function deleteUser(userId) {
   }
 
   // Remove webhooks and deliveries
-  const webhookKeys = [];
+  const webhookKeys: string[] = [];
   let cursor = "0";
   do {
     const [newCursor, foundKeys] = await redis.scan(
@@ -175,9 +203,14 @@ export async function deleteUser(userId) {
   return true;
 }
 
-export async function getAllUsers(limit = 100, offset = 0) {
+export async function getAllUsers(limit = 100, offset = 0): Promise<{
+  users: SafeUser[];
+  total: number;
+  limit: number;
+  offset: number;
+}> {
   // Scan for all user keys (pattern: user:user_*)
-  const keys = [];
+  const keys: string[] = [];
   let cursor = "0";
   
   do {
@@ -193,7 +226,7 @@ export async function getAllUsers(limit = 100, offset = 0) {
   } while (cursor !== "0");
   
   // Get all user data
-  const users = [];
+  const users: SafeUser[] = [];
   for (const key of keys) {
     // Skip non-string keys (e.g., user:<id>:apikeys set)
     const keyType = await redis.type(key);
@@ -204,7 +237,7 @@ export async function getAllUsers(limit = 100, offset = 0) {
     const data = await redis.get(key);
     if (data) {
       try {
-        const user = JSON.parse(data);
+        const user = JSON.parse(data) as StoredUser;
         users.push(sanitizeUser(user));
       } catch (e) {
         // Skip malformed entries
@@ -226,7 +259,15 @@ export async function getAllUsers(limit = 100, offset = 0) {
   };
 }
 
-function getTierRateLimit(tier) {
+function isUserTier(tier: string): tier is UserTier {
+  return ["free", "starter", "professional", "enterprise"].includes(tier);
+}
+
+function isUserRole(role: string): role is UserRole {
+  return role === "user" || role === "admin";
+}
+
+function getTierRateLimit(tier: UserTier): number {
   const limits = {
     free: 10,      // 10 requests per minute
     starter: 50,   // 50 requests per minute
@@ -236,7 +277,7 @@ function getTierRateLimit(tier) {
   return limits[tier] || 10;
 }
 
-function sanitizeUser(user) {
+function sanitizeUser(user: StoredUser): SafeUser {
   const { passwordHash, ...safe } = user;
   return safe;
 }

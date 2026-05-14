@@ -8,9 +8,15 @@
 import http from "http";
 
 const BASE_URL = "http://localhost:4000";
-let accessToken = null;
+let accessToken: string | null = null;
 
-function makeRequest(method, path, body = null, includeAuth = false) {
+type TestResponse = {
+  status?: number;
+  body: any;
+  raw: string;
+};
+
+function makeRequest(method: string, path: string, body: unknown = null, includeAuth = false): Promise<TestResponse> {
   return new Promise((resolve, reject) => {
     const url = new URL(path, BASE_URL);
     const options = {
@@ -20,7 +26,7 @@ function makeRequest(method, path, body = null, includeAuth = false) {
       method,
       headers: {
         "Content-Type": "application/json",
-      },
+      } as Record<string, string>,
     };
 
     if (includeAuth && accessToken) {
@@ -109,7 +115,7 @@ async function testMetrics() {
     }
 
     const metricsText = metrics.body;
-    const lines = metricsText.split("\n").filter((line) => line && !line.startsWith("#"));
+    const lines = metricsText.split("\n").filter((line: string) => line && !line.startsWith("#"));
 
     // Verify key metrics exist
     const keyMetrics = [
@@ -122,7 +128,7 @@ async function testMetrics() {
     ];
 
     for (const metric of keyMetrics) {
-      const found = lines.some((line) => line.startsWith(metric));
+      const found = lines.some((line: string) => line.startsWith(metric));
       if (!found) {
         throw new Error(`Missing required metric: ${metric}`);
       }
@@ -130,7 +136,7 @@ async function testMetrics() {
 
     console.log(`  Total metrics lines: ${lines.length}`);
     console.log(`  Sample metrics:`);
-    lines.slice(0, 5).forEach((line) => console.log(`    ${line}`));
+    lines.slice(0, 5).forEach((line: string) => console.log(`    ${line}`));
     console.log(`    ...\n`);
 
     // Test 4: Submit a job and verify metrics update

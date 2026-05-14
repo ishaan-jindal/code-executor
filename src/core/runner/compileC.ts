@@ -11,7 +11,16 @@ const execFileAsync = promisify(execFile);
  * @param {string} dir - Host directory containing main.c
  * @throws {{ status: string, stderr: string }} on compilation failure
  */
-export async function compileC(dir) {
+interface ExecFileError extends Error {
+  stderr?: string;
+}
+
+export interface CompileError {
+  status: typeof JobStatus.COMPILE_ERROR;
+  stderr: string;
+}
+
+export async function compileC(dir: string): Promise<void> {
   const compileCmd =
     "gcc /app/main.c -O2 -o /app/a.out && chmod +x /app/a.out";
 
@@ -24,9 +33,10 @@ export async function compileC(dir) {
   try {
     await execFileAsync("docker", dockerArgs);
   } catch (err) {
+    const execError = err as ExecFileError;
     throw {
       status: JobStatus.COMPILE_ERROR,
-      stderr: err.stderr || err.message,
-    };
+      stderr: execError.stderr || execError.message,
+    } satisfies CompileError;
   }
 }

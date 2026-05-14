@@ -134,6 +134,7 @@ async function runTests() {
     // Test 9: Verify Python has required fields
     console.log("Test 9: Verify Python metadata completeness");
     const pythonComplete = getLanguage("python");
+    if (!pythonComplete) throw new Error("Expected python language metadata");
     const requiredFields = [
       "id",
       "name",
@@ -161,6 +162,7 @@ async function runTests() {
     // Test 10: Verify C has compiler flags
     console.log("Test 10: Verify C has compiler flags");
     const cComplete = getLanguage("c");
+    if (!cComplete) throw new Error("Expected C language metadata");
 
     if (
       cComplete.compiler_flags_default &&
@@ -177,6 +179,7 @@ async function runTests() {
     // Test 11: Verify Java has required fields
     console.log("Test 11: Verify Java metadata completeness");
     const javaComplete = getLanguage("java");
+    if (!javaComplete) throw new Error("Expected Java language metadata");
     const javaRequiredFields = [
       "id",
       "name",
@@ -204,6 +207,7 @@ async function runTests() {
 
     // Test 12: Verify features object structure
     console.log("Test 12: Verify features object structure");
+    if (!python) throw new Error("Expected python language metadata");
     const features = python.features;
 
     if (

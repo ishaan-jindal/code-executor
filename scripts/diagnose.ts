@@ -5,7 +5,13 @@ import http from "http";
 
 console.log("🔍 Diagnosing Code Executor Environment...\n");
 
-const checks = [];
+interface CheckResult {
+  name: string;
+  status: "✓" | "✗" | "⚠";
+  message: string;
+}
+
+const checks: CheckResult[] = [];
 
 // Check 1: Node.js version
 try {
@@ -94,14 +100,14 @@ try {
 }
 
 // Check 6: Server
-function checkServer() {
+function checkServer(): Promise<CheckResult> {
   return new Promise((resolve) => {
     const req = http.get("http://localhost:4000/health", (res) => {
       let data = "";
       res.on("data", (chunk) => (data += chunk));
       res.on("end", () => {
         try {
-          const json = JSON.parse(data);
+          const json = JSON.parse(data) as { status?: string };
           if (res.statusCode === 200 && json.status) {
             resolve({
               name: "Server (localhost:4000)",

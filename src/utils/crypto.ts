@@ -12,6 +12,6 @@ import crypto from "crypto";
  * @param {string} value - The raw token/key to hash
  * @returns {string} Hex-encoded SHA-256 hash
  */
-export function hashToken(value) {
+export function hashToken(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex");
 }

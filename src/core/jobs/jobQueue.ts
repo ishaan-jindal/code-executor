@@ -2,11 +2,11 @@ import { redis, redisBlocking } from "../../infrastructure/redis/redisClient.ts"
 
 const QUEUE_KEY = "jobs:queue";
 
-export async function enqueueJob(jobId) {
+export async function enqueueJob(jobId: string): Promise<void> {
   await redis.rpush(QUEUE_KEY, jobId);
 }
 
-export async function dequeueJob() {
+export async function dequeueJob(): Promise<string | null> {
   const result = await redisBlocking.blpop(QUEUE_KEY, 0);
   if (!result || !result[1]) {
     return null;

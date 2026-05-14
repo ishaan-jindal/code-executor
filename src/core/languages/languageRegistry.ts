@@ -2,7 +2,31 @@
  * Language Registry - Information about supported languages
  */
 
-export const LANGUAGES = {
+export interface LanguageFeatures {
+  stdin: boolean;
+  file_io: boolean;
+  networking: boolean;
+  subprocess: boolean;
+}
+
+export interface LanguageInfo {
+  [key: string]: unknown;
+  id: string;
+  name: string;
+  version: string;
+  description: string;
+  aliases: string[];
+  compile_time_ms: number;
+  memory_limit_mb: number;
+  cpu_limit: number;
+  timeout_ms: number;
+  features: LanguageFeatures;
+  example: string;
+  compiler_flags_default?: string;
+  compiler_flags_allowed?: string[];
+}
+
+export const LANGUAGES: Record<string, LanguageInfo> = {
   python: {
     id: "python",
     name: "Python",
@@ -68,7 +92,7 @@ int main() {
 /**
  * Get language by ID or alias
  */
-export function getLanguage(lang) {
+export function getLanguage(lang: string | null | undefined): LanguageInfo | null {
   const normalizedLang = (lang || "").toLowerCase();
 
   // Direct match
@@ -89,14 +113,14 @@ export function getLanguage(lang) {
 /**
  * Get all supported languages
  */
-export function getAllLanguages() {
+export function getAllLanguages(): LanguageInfo[] {
   return Object.values(LANGUAGES);
 }
 
 /**
  * Validate language is supported
  */
-export function isLanguageSupported(lang) {
+export function isLanguageSupported(lang: string | null | undefined): boolean {
   return getLanguage(lang) !== null;
 }
 
@@ -104,6 +128,6 @@ export function isLanguageSupported(lang) {
  * Get language by ID or alias
  * Alias for getLanguage() for compatibility
  */
-export function getLanguageById(lang) {
+export function getLanguageById(lang: string | null | undefined): LanguageInfo | null {
   return getLanguage(lang);
 }

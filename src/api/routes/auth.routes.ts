@@ -9,6 +9,7 @@ import {
   updateUser,
   deleteUser,
   hashPassword,
+  type UserUpdate,
 } from "../../core/auth/userStore.ts";
 import {
   generateAccessToken,
@@ -277,7 +278,7 @@ router.patch("/me", authenticateJWT, async (req, res, next) => {
       throw new ApiError(400, "Provide email or username to update");
     }
     
-    const updates = {};
+    const updates: UserUpdate = {};
     
     if (email) {
       if (!email.includes("@")) {

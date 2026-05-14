@@ -4,10 +4,12 @@
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
     "strict": true,
+    "useUnknownInCatchVariables": false,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "resolveJsonModule": true,
+    "rewriteRelativeImportExtensions": true,
     "outDir": "dist",
     "types": ["node"]
   },

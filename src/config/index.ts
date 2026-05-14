@@ -9,7 +9,16 @@ import { execFileSync } from "child_process";
 
 // ─── Helpers ──────────────────────────────────────────────────
 
-function requiredEnv(key) {
+export interface GVisorStatus {
+  available: boolean;
+  reason: string;
+}
+
+function getErrorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function requiredEnv(key: string): string {
   const value = process.env[key];
   if (value === undefined || value === "") {
     throw new Error(`Missing required environment variable: ${key}`);
@@ -17,12 +26,12 @@ function requiredEnv(key) {
   return value;
 }
 
-function optionalEnv(key, fallback) {
+function optionalEnv(key: string, fallback: string): string {
   const value = process.env[key];
   return value !== undefined && value !== "" ? value : fallback;
 }
 
-function intEnv(key, fallback) {
+function intEnv(key: string, fallback: number): number {
   const raw = optionalEnv(key, String(fallback));
   const parsed = Number(raw);
   if (!Number.isFinite(parsed)) {
@@ -31,7 +40,7 @@ function intEnv(key, fallback) {
   return parsed;
 }
 
-function boolEnv(key, fallback) {
+function boolEnv(key: string, fallback: boolean): boolean {
   const raw = optionalEnv(key, String(fallback));
   return raw === "true" || raw === "1";
 }
@@ -40,14 +49,13 @@ function boolEnv(key, fallback) {
  * Parse time string (e.g., "15m", "7d") to seconds.
  * Supports s(econds), m(inutes), h(ours), d(ays).
  */
-export function parseTimeToSeconds(timeStr) {
+export function parseTimeToSeconds(timeStr: string): number {
   const match = String(timeStr).match(/^(\d+)([smhd])$/);
   if (!match) return 604800; // default 7 days
 
   const value = parseInt(match[1], 10);
-  const unit = match[2];
-
   const multipliers = { s: 1, m: 60, h: 3600, d: 86400 };
+  const unit = match[2] as keyof typeof multipliers;
   return value * (multipliers[unit] || 86400);
 }
 
@@ -57,7 +65,7 @@ export function parseTimeToSeconds(timeStr) {
  * Detect gVisor availability.
  * Returns { available: boolean, reason: string }
  */
-function detectGVisor() {
+function detectGVisor(): GVisorStatus {
   if (boolEnv("DISABLE_GVISOR", false)) {
     return { available: false, reason: "DISABLE_GVISOR is set to true in environment" };
   }
@@ -75,7 +83,7 @@ function detectGVisor() {
 
     return { available: false, reason: "runsc runtime not registered in Docker (see: gVisor install docs)" };
   } catch (err) {
-    return { available: false, reason: `Docker check failed: ${err.message}` };
+    return { available: false, reason: `Docker check failed: ${getErrorMessage(err)}` };
   }
 }
 
@@ -124,9 +132,9 @@ const config = Object.freeze({
 
 // ─── gVisor: detect on startup (lazy, so tests can skip) ──────
 
-let _gvisorResult = null;
+let _gvisorResult: GVisorStatus | null = null;
 
-export function isGVisorAvailable() {
+export function isGVisorAvailable(): boolean {
   if (_gvisorResult === null) {
     _gvisorResult = detectGVisor();
   }
@@ -137,7 +145,7 @@ export function isGVisorAvailable() {
  * Get full gVisor detection status (for startup logging).
  * @returns {{ available: boolean, reason: string }}
  */
-export function getGVisorStatus() {
+export function getGVisorStatus(): GVisorStatus {
   if (_gvisorResult === null) {
     _gvisorResult = detectGVisor();
   }
@@ -147,7 +155,7 @@ export function getGVisorStatus() {
 /**
  * Override gVisor detection result (for testing).
  */
-export function setGVisorOverride(value) {
+export function setGVisorOverride(value: boolean | null): void {
   if (value === null) {
     _gvisorResult = null;
   } else {
@@ -156,4 +164,3 @@ export function setGVisorOverride(value) {
 }
 
 export default config;
-

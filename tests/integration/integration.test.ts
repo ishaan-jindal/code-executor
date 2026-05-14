@@ -4,10 +4,15 @@ import { JobStatus } from "../../src/core/jobs/jobTypes.ts";
 const BASE_URL = "http://localhost:4000";
 
 // Store auth token
-let accessToken = null;
+let accessToken: string | null = null;
+
+type TestResponse = {
+  status?: number;
+  body: any;
+};
 
 // Helper to make HTTP requests
-function makeRequest(method, path, body = null, includeAuth = false) {
+function makeRequest(method: string, path: string, body: unknown = null, includeAuth = false): Promise<TestResponse> {
   return new Promise((resolve, reject) => {
     const url = new URL(path, BASE_URL);
     const options = {
@@ -17,7 +22,7 @@ function makeRequest(method, path, body = null, includeAuth = false) {
       method: method,
       headers: {
         "Content-Type": "application/json",
-      },
+      } as Record<string, string>,
     };
 
     // Add authentication if requested and token is available
@@ -62,7 +67,7 @@ function makeRequest(method, path, body = null, includeAuth = false) {
   });
 }
 
-function getPrimaryResult(result) {
+function getPrimaryResult(result: any) {
   return result?.results?.[0] || null;
 }
 

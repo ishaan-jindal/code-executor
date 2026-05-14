@@ -10,7 +10,7 @@ import { parseTimeToSeconds } from "../../config/index.ts";
  * Revoke all tokens for a specific user
  * @param {string} userId - User ID whose tokens to revoke
  */
-export async function revokeAllUserTokens(userId) {
+export async function revokeAllUserTokens(userId: string): Promise<void> {
   const timestamp = Math.floor(Date.now() / 1000);
   const ttl = parseTimeToSeconds(process.env.REFRESH_TOKEN_EXPIRES_IN || "7d");
 
@@ -24,7 +24,7 @@ export async function revokeAllUserTokens(userId) {
  * @param {number} tokenIssuedAt - Token iat claim (issued at timestamp)
  * @returns {Promise<boolean>} True if token is invalidated
  */
-export async function isTokenRevokedForUser(userId, tokenIssuedAt) {
+export async function isTokenRevokedForUser(userId: string, tokenIssuedAt: number): Promise<boolean> {
   const logoutTs = await redis.get(`user:${userId}:logout_ts`);
   if (!logoutTs) return false;
 
@@ -37,7 +37,7 @@ export async function isTokenRevokedForUser(userId, tokenIssuedAt) {
  * @param {string} token - The refresh token to revoke
  * @param {number} expiresIn - Token expiration time in seconds
  */
-export async function revokeToken(token, expiresIn) {
+export async function revokeToken(token: string, expiresIn?: number): Promise<void> {
   const tokenHash = hashToken(token);
   const ttl =
     expiresIn ||
@@ -52,7 +52,7 @@ export async function revokeToken(token, expiresIn) {
  * @param {string} token - The token to check
  * @returns {Promise<boolean>} True if blacklisted
  */
-export async function isTokenBlacklisted(token) {
+export async function isTokenBlacklisted(token: string): Promise<boolean> {
   const tokenHash = hashToken(token);
   const exists = await redis.exists(`blacklist:token:${tokenHash}`);
   return exists === 1;

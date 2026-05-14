@@ -130,6 +130,7 @@ describe("LanguageRegistry", () => {
 
     it("C should have compiler_flags_allowed", () => {
       const c = getLanguage("c");
+      assert.ok(c);
       assert.ok(c.compiler_flags_default);
       assert.ok(Array.isArray(c.compiler_flags_allowed));
       assert.ok(c.compiler_flags_allowed.length > 0);
@@ -137,6 +138,7 @@ describe("LanguageRegistry", () => {
 
     it("Python should have zero compile_time_ms", () => {
       const python = getLanguage("python");
+      assert.ok(python);
       assert.equal(python.compile_time_ms, 0);
     });
 

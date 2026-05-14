@@ -1,23 +1,26 @@
+import type { ErrorRequestHandler } from "express";
 import { error as logError } from "../infrastructure/logs/logger.ts";
 import { ApiResponse } from "../utils/apiResponse.ts";
 
 /**
  * Global error handler middleware
  */
-export function errorHandler(err, req, res, next) {
-  const status = err.statusCode || 500;
+export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
+  const apiError = err as { statusCode?: number; message?: string; code?: string; details?: unknown };
+  const status = apiError.statusCode || 500;
+  const message = apiError.message || "Internal error";
 
-  logError(err.message, {
+  logError(message, {
     reqId: req.requestId,
   });
 
-  if (err.details) {
-    logError(JSON.stringify(err.details), {
+  if (apiError.details) {
+    logError(JSON.stringify(apiError.details), {
       reqId: req.requestId,
     });
   }
 
   return res.status(status).json(
-    ApiResponse.error(err.message, err.code || "INTERNAL_ERROR")
+    ApiResponse.error(message, apiError.code || "INTERNAL_ERROR")
   );
-}
+};

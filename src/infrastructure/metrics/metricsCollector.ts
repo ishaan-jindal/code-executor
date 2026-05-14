@@ -3,7 +3,73 @@
  * Tracks job execution, performance, and system health
  */
 
+interface LanguageJobMetrics {
+  submitted: number;
+  completed: number;
+}
+
+interface LanguageExecutionMetrics {
+  total: number;
+  count: number;
+  min: number;
+  max: number;
+}
+
+interface MetricsJobs {
+  submitted: number;
+  completed: number;
+  accepted: number;
+  failed: number;
+  timeout: number;
+  compile_error: number;
+  by_language: Record<string, LanguageJobMetrics>;
+}
+
+interface MetricsExecution {
+  total_time: number;
+  min_time: number;
+  max_time: number;
+  count: number;
+  by_language: Record<string, LanguageExecutionMetrics>;
+}
+
+interface MetricsQueue {
+  current_size: number;
+  max_size: number;
+  total_dequeued: number;
+  avg_queue_wait_time: number;
+  queue_wait_times: number[];
+}
+
+interface MetricsWorkers {
+  active: number;
+  total_processed: number;
+  error_count: number;
+  last_error: string | null;
+}
+
+interface MetricsSystem {
+  redis_connected: boolean;
+  last_redis_check: number;
+  uptime_start: number;
+  memory_usage: NodeJS.MemoryUsage;
+  total_requests: number;
+  error_requests: number;
+}
+
+interface MetricsPerformance {
+  execution_times: number[];
+  queue_wait_times: number[];
+}
+
 export class MetricsCollector {
+  jobs: MetricsJobs;
+  execution: MetricsExecution;
+  queue: MetricsQueue;
+  workers: MetricsWorkers;
+  system: MetricsSystem;
+  performance: MetricsPerformance;
+
   constructor() {
     // Job metrics
     this.jobs = {
@@ -61,7 +127,7 @@ export class MetricsCollector {
 
   // ==================== JOB METRICS ====================
 
-  recordSubmission(language) {
+  recordSubmission(language: string): void {
     this.jobs.submitted++;
     if (!this.jobs.by_language[language]) {
       this.jobs.by_language[language] = { submitted: 0, completed: 0 };
@@ -70,7 +136,7 @@ export class MetricsCollector {
     this.system.total_requests++;
   }
 
-  recordCompletion(status, language, executionTime, queueWaitTime) {
+  recordCompletion(status: string, language: string, executionTime: number, queueWaitTime: number): void {
     this.jobs.completed++;
     
     // Record by status
@@ -128,29 +194,29 @@ export class MetricsCollector {
     }
   }
 
-  recordWorkerError() {
+  recordWorkerError(): void {
     this.workers.error_count++;
     this.workers.last_error = new Date().toISOString();
     this.system.error_requests++;
   }
 
-  recordRedisCheck(connected) {
+  recordRedisCheck(connected: boolean): void {
     this.system.redis_connected = connected;
     this.system.last_redis_check = Date.now();
   }
 
   // ==================== QUEUE METRICS ====================
 
-  updateQueueSize(size) {
+  updateQueueSize(size: number): void {
     this.queue.current_size = size;
     this.queue.max_size = Math.max(this.queue.max_size, size);
   }
 
-  recordQueueDequeue() {
+  recordQueueDequeue(): void {
     this.queue.total_dequeued++;
   }
 
-  updateAverageQueueWaitTime() {
+  updateAverageQueueWaitTime(): void {
     if (this.queue.queue_wait_times.length === 0) return;
     const sum = this.queue.queue_wait_times.reduce((a, b) => a + b, 0);
     this.queue.avg_queue_wait_time = Math.round(sum / this.queue.queue_wait_times.length);
@@ -163,54 +229,54 @@ export class MetricsCollector {
 
   // ==================== SYSTEM METRICS ====================
 
-  updateSystemMetrics() {
+  updateSystemMetrics(): void {
     this.system.memory_usage = process.memoryUsage();
   }
 
   // ==================== GETTERS ====================
 
-  getSuccessRate() {
+  getSuccessRate(): string | 0 {
     if (this.jobs.completed === 0) return 0;
     return ((this.jobs.accepted / this.jobs.completed) * 100).toFixed(2);
   }
 
-  getAverageExecutionTime() {
+  getAverageExecutionTime(): number {
     if (this.execution.count === 0) return 0;
     return Math.round(this.execution.total_time / this.execution.count);
   }
 
-  getExecutionTimePercentile(percentile) {
+  getExecutionTimePercentile(percentile: number): number {
     if (this.performance.execution_times.length === 0) return 0;
     const sorted = [...this.performance.execution_times].sort((a, b) => a - b);
     const index = Math.floor((percentile / 100) * sorted.length);
     return sorted[index] || 0;
   }
 
-  getQueueWaitTimePercentile(percentile) {
+  getQueueWaitTimePercentile(percentile: number): number {
     if (this.performance.queue_wait_times.length === 0) return 0;
     const sorted = [...this.performance.queue_wait_times].sort((a, b) => a - b);
     const index = Math.floor((percentile / 100) * sorted.length);
     return sorted[index] || 0;
   }
 
-  getUptimeSeconds() {
+  getUptimeSeconds(): number {
     return Math.floor((Date.now() - this.system.uptime_start) / 1000);
   }
 
-  getJobsPerSecond() {
+  getJobsPerSecond(): string | 0 {
     const uptime = this.getUptimeSeconds();
     if (uptime === 0) return 0;
     return (this.jobs.completed / uptime).toFixed(2);
   }
 
-  getErrorRate() {
+  getErrorRate(): string | 0 {
     if (this.system.total_requests === 0) return 0;
     return ((this.system.error_requests / this.system.total_requests) * 100).toFixed(2);
   }
 
   // ==================== SUMMARY ====================
 
-  getMetricsSummary() {
+  getMetricsSummary(): Record<string, unknown> {
     return {
       timestamp: new Date().toISOString(),
       uptime: {
@@ -237,7 +303,13 @@ export class MetricsCollector {
         p50_ms: this.getExecutionTimePercentile(50),
         p95_ms: this.getExecutionTimePercentile(95),
         p99_ms: this.getExecutionTimePercentile(99),
-        by_language: Object.keys(this.execution.by_language).reduce((acc, lang) => {
+        by_language: Object.keys(this.execution.by_language).reduce<Record<string, {
+          total_ms: number;
+          count: number;
+          average_ms: number;
+          min_ms: number;
+          max_ms: number;
+        }>>((acc, lang) => {
           const stats = this.execution.by_language[lang];
           acc[lang] = {
             total_ms: stats.total,
@@ -273,8 +345,8 @@ export class MetricsCollector {
 
   // ==================== PROMETHEUS FORMAT ====================
 
-  getPrometheusMetrics() {
-    const lines = [];
+  getPrometheusMetrics(): string {
+    const lines: string[] = [];
     const ts = Date.now();
 
     // Job metrics
@@ -358,13 +430,13 @@ export class MetricsCollector {
 
   // ==================== UTILS ====================
 
-  formatUptime(seconds) {
+  formatUptime(seconds: number): string {
     const days = Math.floor(seconds / 86400);
     const hours = Math.floor((seconds % 86400) / 3600);
     const mins = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
 
-    const parts = [];
+    const parts: string[] = [];
     if (days > 0) parts.push(`${days}d`);
     if (hours > 0) parts.push(`${hours}h`);
     if (mins > 0) parts.push(`${mins}m`);
@@ -373,7 +445,7 @@ export class MetricsCollector {
     return parts.join(" ");
   }
 
-  reset() {
+  reset(): void {
     this.jobs = {
       submitted: 0,
       completed: 0,

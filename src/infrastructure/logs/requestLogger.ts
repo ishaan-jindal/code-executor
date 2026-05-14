@@ -1,7 +1,8 @@
 import crypto from "crypto";
+import type { RequestHandler } from "express";
 import { info } from "./logger.ts";
 
-export function requestLogger(req, res, next) {
+export const requestLogger: RequestHandler = (req, res, next) => {
   const reqId = crypto.randomUUID();
   req.requestId = reqId;
 
@@ -15,4 +16,4 @@ export function requestLogger(req, res, next) {
   });
 
   next();
-}
+};

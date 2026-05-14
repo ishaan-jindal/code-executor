@@ -1,3 +1,4 @@
+import type { Express } from "express";
 import healthRoutes from "./health.routes.ts";
 import jobRoutes from "./job.routes.ts";
 import monitoringRoutes from "./monitoring.routes.ts";
@@ -8,7 +9,7 @@ import webhooksRoutes from "./webhooks.routes.ts";
 /**
  * Configure all API routes
  */
-export function configureRoutes(app) {
+export function configureRoutes(app: Express): void {
   app.use("/auth", authRoutes);
   app.use("/admin", adminRoutes);
   app.use(healthRoutes);

@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "child_process";
-import { JobStatus } from "../jobs/jobTypes.ts";
+import { JobStatus, type ExecutionResult } from "../jobs/jobTypes.ts";
 import { truncateOutput, MAX_OUTPUT_SIZE } from "../../utils/outputHandler.ts";
 import config from "../../config/index.ts";
 
@@ -12,7 +12,7 @@ import config from "../../config/index.ts";
  * @param {string|null} input - stdin data to pipe to the program
  * @returns {Promise<{status: string, stdout: string, stderr: string, exit_code: number|null}>}
  */
-export function runJava(dir, input) {
+export function runJava(dir: string, input: string | number | null | undefined): Promise<ExecutionResult> {
   const runCmd = `javac /app/Main.java && java -cp /app Main`;
 
   const dockerArgs = [
@@ -47,14 +47,14 @@ export function runJava(dir, input) {
     let stderrTruncated = false;
 
     let finished = false;
-    const done = (result) => {
+    const done = (result: ExecutionResult): void => {
       if (finished) return;
       finished = true;
       clearTimeout(killTimer);
       resolve(result);
     };
 
-    child.stdout.on("data", (chunk) => {
+    child.stdout.on("data", (chunk: Buffer) => {
       if (stdoutTruncated) return;
       if (stdout.length + chunk.length > MAX_OUTPUT_SIZE) {
         stdoutTruncated = true;
@@ -64,7 +64,7 @@ export function runJava(dir, input) {
       stdout += chunk;
     });
 
-    child.stderr.on("data", (chunk) => {
+    child.stderr.on("data", (chunk: Buffer) => {
       if (stderrTruncated) return;
       if (stderr.length + chunk.length > MAX_OUTPUT_SIZE) {
         stderrTruncated = true;

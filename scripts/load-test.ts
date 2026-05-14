@@ -10,13 +10,28 @@ export const options = {
   duration: DURATION,
 };
 
-function submitJob(payload) {
+interface SubmitPayload {
+  language: string;
+  code: string;
+  stdin?: string;
+}
+
+interface SubmitResponseBody {
+  job_id?: string;
+  data?: {
+    id?: string;
+    status?: string;
+  };
+  status?: string;
+}
+
+function submitJob(payload: SubmitPayload) {
   return http.post(`${BASE_URL}/submit`, JSON.stringify(payload), {
     headers: { "Content-Type": "application/json" },
   });
 }
 
-function pollResult(jobId) {
+function pollResult(jobId: string) {
   return http.get(`${BASE_URL}/result/${jobId}`);
 }
 
@@ -37,7 +52,7 @@ export default function () {
     return;
   }
 
-  const body = submitRes.json();
+  const body = submitRes.json<SubmitResponseBody>();
   const jobId = body?.job_id || body?.data?.id;
   if (!jobId) {
     sleep(1);
@@ -47,7 +62,7 @@ export default function () {
   for (let i = 0; i < 10; i++) {
     const resultRes = pollResult(jobId);
     if (resultRes.status === 200) {
-      const resultBody = resultRes.json();
+      const resultBody = resultRes.json<SubmitResponseBody>();
       const status = resultBody?.status || resultBody?.data?.status;
       if (status && status !== "QUEUED" && status !== "RUNNING") {
         check(resultRes, {

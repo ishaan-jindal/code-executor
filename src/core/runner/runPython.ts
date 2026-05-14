@@ -8,7 +8,7 @@ import { executeContainer } from "./executeContainer.ts";
  * @param {string|null} stdin - stdin data to pipe
  * @returns {Promise<{status: string, stdout: string, stderr: string, exit_code: number|null}>}
  */
-export function runPython(dir, stdin) {
+export function runPython(dir: string, stdin: string | number | null | undefined) {
   const containerId = generateContainerId();
 
   const dockerArgs = buildSandboxArgs({

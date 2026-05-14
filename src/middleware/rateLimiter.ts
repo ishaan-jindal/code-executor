@@ -1,3 +1,4 @@
+import type { RequestHandler } from "express";
 import { getRedis } from "../infrastructure/redis/redisClient.ts";
 import { ApiError } from "../utils/apiError.ts";
 import { info, warn } from "../infrastructure/logs/logger.ts";
@@ -10,7 +11,7 @@ import { info, warn } from "../infrastructure/logs/logger.ts";
  * 
  * @returns {Function} Express middleware
  */
-export function rateLimitByUser() {
+export function rateLimitByUser(): RequestHandler {
   return async (req, res, next) => {
     try {
       // Skip if no authenticated user (should not happen if used after authMiddleware)
@@ -90,7 +91,7 @@ export function rateLimitByUser() {
  * 
  * @returns {Function} Express middleware
  */
-export function checkRateLimit() {
+export function checkRateLimit(): RequestHandler {
   return async (req, res, next) => {
     try {
       if (!req.user || !req.user.id) {

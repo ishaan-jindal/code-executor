@@ -6,14 +6,19 @@ import assert from "node:assert/strict";
 
 // Import the class by creating our own (mirrors the real implementation)
 class ExecutionLimiter {
-  constructor(maxConcurrent, maxQueue = 1000) {
+  max: number;
+  running: number;
+  queue: Array<(value?: unknown) => void>;
+  maxQueue: number;
+
+  constructor(maxConcurrent: number, maxQueue = 1000) {
     this.max = maxConcurrent;
     this.running = 0;
     this.queue = [];
     this.maxQueue = maxQueue;
   }
 
-  async run(task) {
+  async run<T>(task: () => Promise<T> | T): Promise<T> {
     if (this.running >= this.max) {
       if (this.queue.length >= this.maxQueue) {
         throw new Error("Queue full");
@@ -26,7 +31,7 @@ class ExecutionLimiter {
     } finally {
       this.running--;
       if (this.queue.length > 0) {
-        this.queue.shift()();
+        this.queue.shift()?.();
       }
     }
   }
@@ -75,7 +80,7 @@ describe("ExecutionLimiter", () => {
 
     it("should queue tasks when at max concurrent", async () => {
       const limiter = new ExecutionLimiter(1);
-      const order = [];
+      const order: string[] = [];
 
       const p1 = limiter.run(async () => {
         order.push("first-start");

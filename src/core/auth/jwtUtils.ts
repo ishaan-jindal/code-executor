@@ -1,10 +1,28 @@
 import jwt from "jsonwebtoken";
 import config from "../../config/index.ts";
+import type { SafeUser } from "./userStore.ts";
+
+export interface AccessTokenPayload {
+  sub: string;
+  username: string;
+  email: string;
+  tier: string;
+  rateLimit: number;
+  role: "admin" | "user";
+  type: "access";
+}
+
+export interface RefreshTokenPayload {
+  sub: string;
+  type: "refresh";
+}
+
+export type TokenPayload = AccessTokenPayload | RefreshTokenPayload;
 
 /**
  * Generate access token (short-lived)
  */
-export function generateAccessToken(user) {
+export function generateAccessToken(user: SafeUser): string {
   const payload = {
     sub: user.id,
     username: user.username,
@@ -23,7 +41,7 @@ export function generateAccessToken(user) {
 /**
  * Generate refresh token (long-lived)
  */
-export function generateRefreshToken(user) {
+export function generateRefreshToken(user: SafeUser): string {
   const payload = {
     sub: user.id,
     type: "refresh",
@@ -37,14 +55,14 @@ export function generateRefreshToken(user) {
 /**
  * Verify and decode token
  */
-export function verifyToken(token) {
+export function verifyToken(token: string): TokenPayload {
   try {
-    return jwt.verify(token, config.jwtSecret);
+    return jwt.verify(token, config.jwtSecret) as unknown as TokenPayload;
   } catch (err) {
-    if (err.name === "TokenExpiredError") {
+    if (err instanceof Error && err.name === "TokenExpiredError") {
       throw new Error("Token expired");
     }
-    if (err.name === "JsonWebTokenError") {
+    if (err instanceof Error && err.name === "JsonWebTokenError") {
       throw new Error("Invalid token");
     }
     throw err;
@@ -54,6 +72,6 @@ export function verifyToken(token) {
 /**
  * Decode token without verification (for debugging)
  */
-export function decodeToken(token) {
-  return jwt.decode(token);
+export function decodeToken(token: string): TokenPayload | null {
+  return jwt.decode(token) as unknown as TokenPayload | null;
 }

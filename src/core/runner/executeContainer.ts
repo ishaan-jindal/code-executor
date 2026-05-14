@@ -1,5 +1,5 @@
 import { spawn, spawnSync } from "child_process";
-import { JobStatus } from "../jobs/jobTypes.ts";
+import { JobStatus, type ExecutionResult } from "../jobs/jobTypes.ts";
 import { truncateOutput, MAX_OUTPUT_SIZE } from "../../utils/outputHandler.ts";
 import config from "../../config/index.ts";
 
@@ -14,7 +14,11 @@ import config from "../../config/index.ts";
  * @param {string} containerId  - Container name (for cleanup on timeout)
  * @returns {Promise<{status: string, stdout: string, stderr: string, exit_code: number|null}>}
  */
-export function executeContainer(dockerArgs, stdin, containerId) {
+export function executeContainer(
+  dockerArgs: string[],
+  stdin: string | number | null | undefined,
+  containerId: string
+): Promise<ExecutionResult> {
   return new Promise((resolve, reject) => {
     const child = spawn("docker", dockerArgs, {
       stdio: ["pipe", "pipe", "pipe"],
@@ -26,14 +30,14 @@ export function executeContainer(dockerArgs, stdin, containerId) {
     let stderrTruncated = false;
 
     let finished = false;
-    const done = (result) => {
+    const done = (result: ExecutionResult): void => {
       if (finished) return;
       finished = true;
       clearTimeout(killTimer);
       resolve(result);
     };
 
-    child.stdout.on("data", (chunk) => {
+    child.stdout.on("data", (chunk: Buffer) => {
       if (stdoutTruncated) return;
       if (stdout.length + chunk.length > MAX_OUTPUT_SIZE) {
         stdoutTruncated = true;
@@ -43,7 +47,7 @@ export function executeContainer(dockerArgs, stdin, containerId) {
       stdout += chunk;
     });
 
-    child.stderr.on("data", (chunk) => {
+    child.stderr.on("data", (chunk: Buffer) => {
       if (stderrTruncated) return;
       if (stderr.length + chunk.length > MAX_OUTPUT_SIZE) {
         stderrTruncated = true;

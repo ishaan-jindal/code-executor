@@ -48,7 +48,7 @@ const server = app.listen(config.port, "0.0.0.0", () => {
 });
 
 // Graceful shutdown
-const gracefulShutdown = async (signal) => {
+const gracefulShutdown = async (signal: NodeJS.Signals): Promise<void> => {
   info(`${signal} received, shutting down gracefully`);
 
   server.close(async () => {

@@ -106,7 +106,7 @@ router.get("/webhooks/:id/deliveries", authenticateJWT, checkRateLimit(), async 
   try {
     const userId = req.user.id;
     const webhookId = req.params.id;
-    const limit = Math.min(parseInt(req.query.limit) || 50, 100);
+    const limit = Math.min(parseInt(req.query.limit ?? "50", 10) || 50, 100);
 
     const webhook = await getWebhook(webhookId);
 

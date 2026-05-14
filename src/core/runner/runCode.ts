@@ -1,18 +1,56 @@
 import fs from "fs";
 import path from "path";
 import os from "os";
-import { JobStatus } from "../jobs/jobTypes.ts";
+import { JobStatus, type ExecutionMetrics, type ExecutionResult, type JobRecord, type JobStatusValue } from "../jobs/jobTypes.ts";
 
 import { compileC } from "./compileC.ts";
 import { runBinary } from "./runBinary.ts";
 import { runPython } from "./runPython.ts";
 import { runJava } from "./runJava.ts";
 
-export default async function runCode(job) {
+export interface MultiInputRunResult {
+  status: JobStatusValue;
+  results: ExecutionResult[];
+  stdout: "";
+  stderr: "";
+  exit_code: null;
+  metrics: ExecutionMetrics;
+}
+
+export type RunCodeResult = (ExecutionResult & { metrics: ExecutionMetrics }) | MultiInputRunResult;
+
+interface CompileFailure {
+  stderr?: string;
+  message?: string;
+}
+
+function errorMessage(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
+}
+
+function compileFailureMessage(err: unknown): string {
+  const failure = err as CompileFailure;
+  return failure.stderr || failure.message || "Compilation failed";
+}
+
+function getOverallStatus(results: ExecutionResult[]): JobStatusValue {
+  return results.every((r) => r.status === JobStatus.ACCEPTED)
+    ? JobStatus.ACCEPTED
+    : results.find((r) => r.status !== JobStatus.ACCEPTED)?.status ?? JobStatus.SYSTEM_ERROR;
+}
+
+function withInput(input: string | number | null | undefined, result: ExecutionResult): ExecutionResult {
+  return {
+    stdin: input == null ? "" : String(input),
+    ...result,
+  };
+}
+
+export default async function runCode(job: JobRecord): Promise<RunCodeResult> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-"));
   fs.chmodSync(dir, 0o777);
   const hasMultipleInputs = Array.isArray(job.inputs) && job.inputs.length > 0;
-  const inputs = hasMultipleInputs ? job.inputs : [job.stdin];
+  const inputs: Array<string | number | null | undefined> = hasMultipleInputs ? job.inputs! : [job.stdin];
 
   try {
     if (job.language === "c") {
@@ -28,8 +66,8 @@ export default async function runCode(job) {
         return {
           status: JobStatus.COMPILE_ERROR,
           stdout: "",
-          stderr: err.stderr || (err.message || "Compilation failed"),
-          exit_code: null,
+          stderr: compileFailureMessage(err),
+          exit_code: null as number | null,
           metrics: {
             compile_time_ms: compileTime,
             exec_time_ms: 0,
@@ -38,7 +76,7 @@ export default async function runCode(job) {
       }
 
       const compileTime = Date.now() - compileStart;
-      const results = [];
+      const results: ExecutionResult[] = [];
       let execTimeTotal = 0;
 
       for (const input of inputs) {
@@ -46,15 +84,10 @@ export default async function runCode(job) {
         const execResult = await runBinary(dir, input);
         const execTime = Date.now() - execStart;
         execTimeTotal += execTime;
-        results.push({
-          stdin: input == null ? "" : String(input),
-          ...execResult,
-        });
+        results.push(withInput(input, execResult));
       }
 
-      const overallStatus = results.every((r) => r.status === JobStatus.ACCEPTED)
-        ? JobStatus.ACCEPTED
-        : results.find((r) => r.status !== JobStatus.ACCEPTED)?.status;
+      const overallStatus = getOverallStatus(results);
 
       const response = hasMultipleInputs
         ? {
@@ -62,10 +95,10 @@ export default async function runCode(job) {
           results,
           stdout: "",
           stderr: "",
-          exit_code: null,
+          exit_code: null as number | null,
         }
         : {
-          ...results[0],
+          ...results[0]!,
         };
 
       return {
@@ -81,7 +114,7 @@ export default async function runCode(job) {
       const pyPath = path.join(dir, "main.py");
       fs.writeFileSync(pyPath, job.code);
       fs.chmodSync(pyPath, 0o644);
-      const results = [];
+      const results: ExecutionResult[] = [];
       let execTimeTotal = 0;
 
       for (const input of inputs) {
@@ -89,15 +122,10 @@ export default async function runCode(job) {
         const execResult = await runPython(dir, input);
         const execTime = Date.now() - execStart;
         execTimeTotal += execTime;
-        results.push({
-          stdin: input == null ? "" : String(input),
-          ...execResult,
-        });
+        results.push(withInput(input, execResult));
       }
 
-      const overallStatus = results.every((r) => r.status === JobStatus.ACCEPTED)
-        ? JobStatus.ACCEPTED
-        : results.find((r) => r.status !== JobStatus.ACCEPTED)?.status;
+      const overallStatus = getOverallStatus(results);
 
       const response = hasMultipleInputs
         ? {
@@ -105,10 +133,10 @@ export default async function runCode(job) {
           results,
           stdout: "",
           stderr: "",
-          exit_code: null,
+          exit_code: null as number | null,
         }
         : {
-          ...results[0],
+          ...results[0]!,
         };
 
       return {
@@ -124,7 +152,7 @@ export default async function runCode(job) {
       const javaPath = path.join(dir, "Main.java");
       fs.writeFileSync(javaPath, job.code);
       fs.chmodSync(javaPath, 0o644);
-      const results = [];
+      const results: ExecutionResult[] = [];
       let execTimeTotal = 0;
 
       for (const input of inputs) {
@@ -132,15 +160,10 @@ export default async function runCode(job) {
         const execResult = await runJava(dir, input);
         const execTime = Date.now() - execStart;
         execTimeTotal += execTime;
-        results.push({
-          stdin: input == null ? "" : String(input),
-          ...execResult,
-        });
+        results.push(withInput(input, execResult));
       }
 
-      const overallStatus = results.every((r) => r.status === JobStatus.ACCEPTED)
-        ? JobStatus.ACCEPTED
-        : results.find((r) => r.status !== JobStatus.ACCEPTED)?.status;
+      const overallStatus = getOverallStatus(results);
 
       const response = hasMultipleInputs
         ? {
@@ -148,10 +171,10 @@ export default async function runCode(job) {
           results,
           stdout: "",
           stderr: "",
-          exit_code: null,
+          exit_code: null as number | null,
         }
         : {
-          ...results[0],
+          ...results[0]!,
         };
 
       return {
@@ -177,7 +200,7 @@ export default async function runCode(job) {
     return {
       status: JobStatus.SYSTEM_ERROR,
       stdout: "",
-      stderr: err?.message || "Internal error",
+      stderr: errorMessage(err) || "Internal error",
       exit_code: null,
       metrics: {
         compile_time_ms: 0,

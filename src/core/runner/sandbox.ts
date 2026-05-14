@@ -11,7 +11,24 @@ import config, { isGVisorAvailable } from "../../config/index.ts";
  * Generate a unique container ID for tracking and cleanup.
  * @returns {string}
  */
-export function generateContainerId() {
+export interface SandboxArgsOptions {
+  containerId?: string;
+  image: string;
+  interactive?: boolean;
+  tmpfsSize?: string;
+  readOnly?: boolean;
+  user?: string;
+  hostDir: string;
+  cmd: string[];
+}
+
+export interface CompileArgsOptions {
+  hostDir: string;
+  image: string;
+  cmd: string[];
+}
+
+export function generateContainerId(): string {
   return `runner-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
 }
 
@@ -29,7 +46,7 @@ export function generateContainerId() {
  * @param {string[]} options.cmd         - Command and arguments to execute
  * @returns {string[]} Array of docker arguments
  */
-export function buildSandboxArgs(options) {
+export function buildSandboxArgs(options: SandboxArgsOptions): string[] {
   const {
     containerId,
     image,
@@ -106,7 +123,7 @@ export function buildSandboxArgs(options) {
  * @param {string[]} options.cmd   - Compile command
  * @returns {string[]}
  */
-export function buildCompileArgs(options) {
+export function buildCompileArgs(options: CompileArgsOptions): string[] {
   const { hostDir, image, cmd } = options;
   const sb = config.sandbox;
 

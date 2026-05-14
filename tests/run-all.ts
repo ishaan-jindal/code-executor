@@ -7,7 +7,21 @@
 
 import { spawn } from "child_process";
 
-const tests = [
+interface TestDefinition {
+  name: string;
+  cmd: string;
+  args: string[];
+  type: "unit" | "integration";
+}
+
+interface TestResult {
+  name: string;
+  type: TestDefinition["type"];
+  passed: boolean;
+  duration: number;
+}
+
+const tests: TestDefinition[] = [
   // Pure unit tests (no external dependencies)
   {
     name: "Pure Unit Tests",
@@ -35,7 +49,7 @@ const tests = [
   { name: "Advanced Features", cmd: "node", args: ["tests/integration/advanced-features.test.ts"], type: "integration" },
 ];
 
-function runTest(test) {
+function runTest(test: TestDefinition): Promise<TestResult> {
   return new Promise((resolve) => {
     console.log(`\n${"=".repeat(60)}`);
     console.log(`Running: ${test.name} (${test.type})`);
@@ -69,11 +83,11 @@ function runTest(test) {
   });
 }
 
-async function runAllTests() {
+async function runAllTests(): Promise<void> {
   console.log("🧪 Code Executor Test Suite\n");
   console.log("Starting all tests...\n");
 
-  const results = [];
+  const results: TestResult[] = [];
 
   // Run unit tests
   console.log("\n📦 UNIT TESTS");

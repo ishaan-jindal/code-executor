@@ -202,6 +202,7 @@ async function runTests() {
     console.log("Test 11: API key preserves user metadata");
     const freshKey = await generateApiKey(TEST_USER_ID);
     const userFromKey = await validateApiKey(freshKey.key);
+    if (!userFromKey) throw new Error("Expected API key validation to return a user");
 
     if (
       userFromKey.tier === TEST_USER.tier &&

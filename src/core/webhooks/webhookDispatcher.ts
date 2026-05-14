@@ -7,7 +7,9 @@ import {
   incrementFailedAttempts,
   resetFailedAttempts,
   getUserWebhooks,
+  type WebhookDelivery,
 } from "./webhookStore.ts";
+import type { JobRecord } from "../jobs/jobTypes.ts";
 
 const MAX_RETRIES = 3;
 const RETRY_DELAYS = [1000, 5000, 15000]; // ms
@@ -18,7 +20,9 @@ const RETRY_DELAYS = [1000, 5000, 15000]; // ms
  * @param {string} secret - Secret key
  * @returns {string} - HMAC signature
  */
-function createSignature(payload, secret) {
+type WebhookPayload = Record<string, unknown>;
+
+function createSignature(payload: string, secret: string): string {
   return crypto
     .createHmac("sha256", secret)
     .update(payload)
@@ -32,14 +36,14 @@ function createSignature(payload, secret) {
  * @param {string} secret - Optional secret for HMAC
  * @returns {Promise<Object>} - Delivery result
  */
-function deliverWebhook(url, payload, secret) {
+function deliverWebhook(url: string, payload: WebhookPayload, secret?: string | null): Promise<WebhookDelivery> {
   return new Promise((resolve) => {
     const payloadStr = JSON.stringify(payload);
     const signature = secret ? createSignature(payloadStr, secret) : null;
 
     let attemptCount = 0;
 
-    const tryDeliver = () => {
+    const tryDeliver = (): void => {
       attemptCount++;
       const isLastAttempt = attemptCount === MAX_RETRIES;
 
@@ -52,10 +56,10 @@ function deliverWebhook(url, payload, secret) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Content-Length": Buffer.byteLength(payloadStr),
+            "Content-Length": String(Buffer.byteLength(payloadStr)),
             "User-Agent": "code-executor/1.0",
             "X-Webhook-Delivery": crypto.randomUUID(),
-          },
+          } as Record<string, string>,
           timeout,
         };
 
@@ -66,26 +70,27 @@ function deliverWebhook(url, payload, secret) {
         const req = client.request(urlObj, options, (res) => {
           let body = "";
 
-          res.on("data", (chunk) => {
+          res.on("data", (chunk: Buffer) => {
             body += chunk;
           });
 
           res.on("end", () => {
-            const success = res.statusCode >= 200 && res.statusCode < 300;
+            const statusCode = res.statusCode ?? 0;
+            const success = statusCode >= 200 && statusCode < 300;
 
             if (success) {
               resolve({
                 success: true,
-                status: res.statusCode,
+                status: statusCode,
                 attempts: attemptCount,
                 response_body: body.substring(0, 500), // Truncate
               });
             } else if (isLastAttempt) {
               resolve({
                 success: false,
-                status: res.statusCode,
+                status: statusCode,
                 attempts: attemptCount,
-                error: `HTTP ${res.statusCode}`,
+                error: `HTTP ${statusCode}`,
               });
             } else {
               // Retry
@@ -141,7 +146,7 @@ function deliverWebhook(url, payload, secret) {
  * @param {string} eventType - Event type (e.g., "job.completed")
  * @param {Object} jobData - Job data to send in payload
  */
-export async function triggerWebhooks(userId, eventType, jobData) {
+export async function triggerWebhooks(userId: string, eventType: string, jobData: WebhookPayload): Promise<void> {
   try {
     const webhooks = await getUserWebhooks(userId);
 
@@ -207,7 +212,7 @@ export async function triggerWebhooks(userId, eventType, jobData) {
  * @param {string} userId - User ID
  * @param {Object} job - Job object
  */
-export async function onJobCompleted(userId, job) {
+export async function onJobCompleted(userId: string, job: JobRecord): Promise<void> {
   const jobData = {
     id: job.id,
     language: job.language,
