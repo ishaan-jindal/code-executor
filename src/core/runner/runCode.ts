@@ -6,6 +6,7 @@ import { JobStatus } from "../jobs/jobTypes.ts";
 import { compileC } from "./compileC.ts";
 import { runBinary } from "./runBinary.ts";
 import { runPython } from "./runPython.ts";
+import { runJava } from "./runJava.ts";
 
 export default async function runCode(job) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "run-"));
@@ -86,6 +87,49 @@ export default async function runCode(job) {
       for (const input of inputs) {
         const execStart = Date.now();
         const execResult = await runPython(dir, input);
+        const execTime = Date.now() - execStart;
+        execTimeTotal += execTime;
+        results.push({
+          stdin: input == null ? "" : String(input),
+          ...execResult,
+        });
+      }
+
+      const overallStatus = results.every((r) => r.status === JobStatus.ACCEPTED)
+        ? JobStatus.ACCEPTED
+        : results.find((r) => r.status !== JobStatus.ACCEPTED)?.status;
+
+      const response = hasMultipleInputs
+        ? {
+          status: overallStatus,
+          results,
+          stdout: "",
+          stderr: "",
+          exit_code: null,
+        }
+        : {
+          ...results[0],
+        };
+
+      return {
+        ...response,
+        metrics: {
+          compile_time_ms: 0,
+          exec_time_ms: execTimeTotal,
+        },
+      };
+    }
+
+    if (job.language === "java") {
+      const javaPath = path.join(dir, "Main.java");
+      fs.writeFileSync(javaPath, job.code);
+      fs.chmodSync(javaPath, 0o644);
+      const results = [];
+      let execTimeTotal = 0;
+
+      for (const input of inputs) {
+        const execStart = Date.now();
+        const execResult = await runJava(dir, input);
         const execTime = Date.now() - execStart;
         execTimeTotal += execTime;
         results.push({

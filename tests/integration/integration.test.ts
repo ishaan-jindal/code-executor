@@ -349,8 +349,96 @@ async function runTests() {
     console.log(`  Status: ${cStdinResult.status}`);
     console.log(`  Output: ${(cStdinPrimary?.stdout || "").trim()}\n`);
 
-    // Test 13: Multi-line stdin
-    console.log("✓ Test 13: Multi-line stdin");
+    // Test 13: Submit Java code
+    console.log("✓ Test 13: Submit Java Code");
+    const javaSubmit = await makeRequest("POST", "/submit", {
+      language: "java",
+      code: `
+        public class Main {
+          public static void main(String[] args) {
+            System.out.println("Java works!");
+          }
+        }
+      `,
+      inputs: [""],
+    }, true);
+
+    if (javaSubmit.status !== 201) {
+      throw new Error(`Expected 201, got ${javaSubmit.status}`);
+    }
+    const javaJobId = javaSubmit.body.data.job_id;
+    console.log(`  Java Job ID: ${javaJobId}\n`);
+
+    // Test 14: Wait for Java execution
+    console.log("✓ Test 14: Wait for Java Execution");
+    let javaResult = null;
+    for (let i = 0; i < 75; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      const res = await makeRequest("GET", `/result/${javaJobId}`, null, true);
+      if (res.body.data.status !== JobStatus.QUEUED && res.body.data.status !== JobStatus.RUNNING) {
+        javaResult = res.body.data;
+        break;
+      }
+    }
+
+    if (!javaResult) {
+      throw new Error("Java job did not complete in time");
+    }
+
+    const javaPrimary = getPrimaryResult(javaResult);
+    if (javaResult.status !== JobStatus.ACCEPTED) {
+      throw new Error(`Java job failed: ${javaResult.status}\nStderr: ${javaPrimary?.stderr || ""}`);
+    }
+    console.log(`  Status: ${javaResult.status}`);
+    console.log(`  Output: ${(javaPrimary?.stdout || "").trim()}\n`);
+
+    // Test 15: Java with stdin
+    console.log("✓ Test 15: Java with stdin");
+    const javaStdinRes = await makeRequest("POST", "/submit", {
+      language: "java",
+      code: `
+        import java.util.Scanner;
+        public class Main {
+          public static void main(String[] args) {
+            Scanner scanner = new Scanner(System.in);
+            int x = scanner.nextInt();
+            System.out.println("You entered: " + x);
+            System.out.println("Squared: " + (x * x));
+          }
+        }
+      `,
+      inputs: ["9"],
+    }, true);
+    if (javaStdinRes.status !== 201) {
+      throw new Error(`Expected 201, got ${javaStdinRes.status}`);
+    }
+    const javaStdinJobId = javaStdinRes.body.data.job_id;
+
+    let javaStdinResult = null;
+    for (let i = 0; i < 75; i++) {
+      await new Promise((r) => setTimeout(r, 200));
+      const res = await makeRequest("GET", `/result/${javaStdinJobId}`, null, true);
+      if (res.body.data.status !== JobStatus.QUEUED && res.body.data.status !== JobStatus.RUNNING) {
+        javaStdinResult = res.body.data;
+        break;
+      }
+    }
+
+    if (!javaStdinResult) {
+      throw new Error("Java stdin job did not complete in time");
+    }
+    const javaStdinPrimary = getPrimaryResult(javaStdinResult);
+    if (javaStdinResult.status !== JobStatus.ACCEPTED) {
+      throw new Error(`Java stdin job failed: ${javaStdinResult.status}\nStderr: ${javaStdinPrimary?.stderr || ""}`);
+    }
+    if (!javaStdinPrimary?.stdout?.includes("9") || !javaStdinPrimary?.stdout?.includes("81")) {
+      throw new Error(`Expected stdin and calculation in output: ${javaStdinPrimary?.stdout || ""}`);
+    }
+    console.log(`  Status: ${javaStdinResult.status}`);
+    console.log(`  Output: ${(javaStdinPrimary?.stdout || "").trim()}\n`);
+
+    // Test 16: Multi-line stdin
+    console.log("✓ Test 16: Multi-line stdin");
     const multiRes = await makeRequest("POST", "/submit", {
       language: "python",
       code: "lines = []\nfor _ in range(3):\n  lines.append(input())\nfor i, line in enumerate(lines, 1):\n  print(f'{i}: {line}')",
@@ -384,8 +472,8 @@ async function runTests() {
     console.log(`  Status: ${multiResult.status}`);
     console.log(`  Output: ${(multiPrimary?.stdout || "").trim()}\n`);
 
-    // Test 14: Unauthenticated request (should fail)
-    console.log("✓ Test 14: Unauthenticated Request (Should Fail)");
+    // Test 17: Unauthenticated request (should fail)
+    console.log("✓ Test 17: Unauthenticated Request (Should Fail)");
     const unauthRes = await makeRequest("POST", "/submit", {
       language: "python",
       code: 'print("test")',

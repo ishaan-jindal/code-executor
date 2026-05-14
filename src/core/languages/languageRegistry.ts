@@ -45,6 +45,24 @@ int main() {
   return 0;
 }`,
   },
+  java: {
+    id: "java",
+    name: "Java",
+    version: "21",
+    description: "Java 21 with standard libraries",
+    aliases: ["java", "java21"],
+    compile_time_ms: 0,
+    memory_limit_mb: 128,
+    cpu_limit: 1,
+    timeout_ms: 8000,
+    features: {
+      stdin: true,
+      file_io: false,
+      networking: false,
+      subprocess: false,
+    },
+    example: `public class Main {\n    public static void main(String[] args) {\n        System.out.println(\"Hello, World!\");\n    }\n}\n`,
+  },
 };
 
 /**
@@ -52,19 +70,19 @@ int main() {
  */
 export function getLanguage(lang) {
   const normalizedLang = (lang || "").toLowerCase();
-  
+
   // Direct match
   if (LANGUAGES[normalizedLang]) {
     return LANGUAGES[normalizedLang];
   }
-  
+
   // Check aliases
   for (const [id, langInfo] of Object.entries(LANGUAGES)) {
     if (langInfo.aliases && langInfo.aliases.includes(normalizedLang)) {
       return langInfo;
     }
   }
-  
+
   return null;
 }
 

@@ -102,27 +102,32 @@ async function runTests() {
       testsFailed++;
     }
 
-    // Test 7: Unsupported language
-    console.log("Test 7: Check unsupported language");
+    // Test 7: Java is now supported
+    console.log("Test 7: Check Java language support");
     const javaSupported = isLanguageSupported("java");
 
-    if (javaSupported === false) {
-      console.log("✓ Java correctly identified as unsupported\n");
+    if (javaSupported === true) {
+      console.log("✓ Java correctly identified as supported\n");
       testsPassed++;
     } else {
-      console.log("✗ Unsupported language check failed\n");
+      console.log("✗ Java support check failed\n");
       testsFailed++;
     }
 
-    // Test 8: Get unsupported language returns null
-    console.log("Test 8: Get unsupported language");
+    // Test 8: Get Java language
+    console.log("Test 8: Get Java language");
     const java = getLanguage("java");
 
-    if (java === null) {
-      console.log("✓ Unsupported language returns null\n");
+    if (
+      java &&
+      java.id === "java" &&
+      java.version === "21" &&
+      java.features.stdin === true
+    ) {
+      console.log("✓ Java language retrieved correctly\n");
       testsPassed++;
     } else {
-      console.log("✗ Should return null for unsupported language\n");
+      console.log("✗ Java language retrieval failed\n");
       testsFailed++;
     }
 
@@ -169,8 +174,36 @@ async function runTests() {
       testsFailed++;
     }
 
-    // Test 11: Verify features object structure
-    console.log("Test 11: Verify features object structure");
+    // Test 11: Verify Java has required fields
+    console.log("Test 11: Verify Java metadata completeness");
+    const javaComplete = getLanguage("java");
+    const javaRequiredFields = [
+      "id",
+      "name",
+      "version",
+      "description",
+      "memory_limit_mb",
+      "cpu_limit",
+      "timeout_ms",
+      "features",
+      "example",
+      "compile_time_ms",
+    ];
+
+    const javaHasAllFields = javaRequiredFields.every(
+      (field) => javaComplete[field] !== undefined
+    );
+
+    if (javaHasAllFields) {
+      console.log("✓ Java has all required metadata fields\n");
+      testsPassed++;
+    } else {
+      console.log("✗ Java missing required fields\n");
+      testsFailed++;
+    }
+
+    // Test 12: Verify features object structure
+    console.log("Test 12: Verify features object structure");
     const features = python.features;
 
     if (
@@ -185,8 +218,8 @@ async function runTests() {
       testsFailed++;
     }
 
-    // Test 12: Verify all languages have unique IDs
-    console.log("Test 12: Verify unique language IDs");
+    // Test 13: Verify all languages have unique IDs
+    console.log("Test 13: Verify unique language IDs");
     const ids = allLangs.map((l) => l.id);
     const uniqueIds = new Set(ids);
 
